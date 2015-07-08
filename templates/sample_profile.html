@@ -1,0 +1,11 @@
+{% extends "layout.html" %}
+{% block body %}
+	<div class="container">
+  	<h3>Sample: {{sample_filename}}</h3>
+  	<p> Position selection track (Chromosome, Position) </p>
+  	<p> Sample track (SVs) </p>
+  	<p> Reference track (Genes)</p>
+  	<p> List affected genes affected (for SV selected on click) </p>
+  </div>
+	<script type="text/javascript" src="/sample_profile.js"></script>
+{% endblock %}

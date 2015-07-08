@@ -1,0 +1,19 @@
+<!doctype html>
+<head>
+	<title>Flaskr</title>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8">
+	<link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+	<link rel="stylesheet" type="text/css" href="http://c3js.org/css/c3-b03125fa.css">
+	<link rel="stylesheet" type="text/css" href="/static/style.css">
+
+	<script src="http://c3js.org/js/jquery-1.11.0.min-910066fb.js"></script>
+	<script src="http://c3js.org/js/d3-3.5.0.min-3b564392.js" charset="utf-8"></script>
+	<script src="http://c3js.org/js/c3.min-12912fb6.js"></script>
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+</head>
+<div class=page>
+  {% for message in get_flashed_messages() %}
+    <div class=flash>{{ message }}</div>
+  {% endfor %}
+  {% block body %}{% endblock %}
+</div>
