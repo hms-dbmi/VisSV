@@ -94,7 +94,7 @@ def loadSingleVCF(vcf_path):
         event_id = record.INFO['EVENT']
         grouped_current_records[event_id].append(record)
 
-# Range specific methods *************************************************
+# Region specific methods ************************************************
 
 def chromSize(chrom_id, species='human', vcf_type='meerkat'):
   '''Returns sizes of given chromosome'''
@@ -102,8 +102,7 @@ def chromSize(chrom_id, species='human', vcf_type='meerkat'):
   chrom_size = vcf_sv_specifc_variables.chromosome_sizes[species][chrom_id] if chrom_id else 0
   return chrom_size
 
-def fetchBreakends(sample_name, chrom_id, start=None, end=None):
-  if not start: start = 0  # if no start position is provided, start from 0
+def fetchBreakends(sample_name, chrom_id, start=0, end=None):
   if not end: end = chromSize(chrom_id) # if no end postion is provided, end at the very end
 
   vcf_path = join(sorted_path, sample_name + '.vcf.gz')
@@ -113,13 +112,13 @@ def fetchBreakends(sample_name, chrom_id, start=None, end=None):
   return breakends
 
 def fetchGenes(chrom_id, start, end, species='human'):
-  '''Returns JSON list of genes in a given region. Maximum request region 
-  at a time is 5Mb. Ensembl accepts both the format used by UCSC and the 
-  one used by Meerkat. Note: No gene listings are available for the 
-  scaffolds and patches, which have names using the prefix GL-.
-  '''
+  '''Returns JSON list of genes in a given region, or None if request is 
+  bad. Maximum request region at a time is 5Mb. Ensembl accepts both the 
+  naming format used by UCSC and the one used by Meerkat. Note: No gene 
+  listings are available for the scaffolds and patches, which have names 
+  using the prefix GL-.'''
 
-  genes = ensembl_requests.getGenes(species, chrom_id, start, end)
+  genes = ensembl_requests.get_genes(species, chrom_id, start, end)
   #print json.dumps(genes, indent=4, sort_keys=True)
   return genes
 
