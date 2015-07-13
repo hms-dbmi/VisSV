@@ -14,6 +14,7 @@ Example:
 
 # Local modules
 import vcf_sv_specifc_variables
+import ensembl_requests
 
 # Built-in modules
 from os import listdir, makedirs
@@ -105,14 +106,17 @@ def fetchBreakends(sample_name, chrom_id, start=None, end=None):
   if not start: start = 0  # if no start position is provided, start from 0
   if not end: end = chromSize(chrom_id) # if no end postion is provided, end at the very end
 
-  vcf_path = join(input_path, 'sorted', sample_name + '.vcf.gz')
+  vcf_path = join(sorted_path, sample_name + '.vcf.gz')
   vcf_reader = vcf.Reader(open(vcf_path, 'r'))
   breakends = vcf_reader.fetch(chrom_id, start, end)
 
   return breakends
 
-def fetchGenes(start, end):
-  return []
+def fetchGenes(chrom_id, start, end, species='human'):
+  '''Returns JSON list of genes in a given region. Maximum request region at a time is 5Mb.'''
+  genes = ensembl_requests.getGenes(species, chrom_id, start, end)
+  #print json.dumps(genes, indent=4, sort_keys=True)
+  return genes
 
 # Event counting methods *************************************************
 
