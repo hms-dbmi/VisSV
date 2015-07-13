@@ -113,7 +113,12 @@ def fetchBreakends(sample_name, chrom_id, start=None, end=None):
   return breakends
 
 def fetchGenes(chrom_id, start, end, species='human'):
-  '''Returns JSON list of genes in a given region. Maximum request region at a time is 5Mb.'''
+  '''Returns JSON list of genes in a given region. Maximum request region 
+  at a time is 5Mb. Ensembl accepts both the format used by UCSC and the 
+  one used by Meerkat. Note: No gene listings are available for the 
+  scaffolds and patches, which have names using the prefix GL-.
+  '''
+
   genes = ensembl_requests.getGenes(species, chrom_id, start, end)
   #print json.dumps(genes, indent=4, sort_keys=True)
   return genes
