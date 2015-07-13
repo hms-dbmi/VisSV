@@ -53,7 +53,12 @@ def js_event_counts():
 	return render_template('event_counts.js', counts=event_counts, totals=event_totals, 
 		colors=vcf2array.getColors('meerkat'))
 
+@app.route('/event_counts.json')
+def json_event_counts():
+	return json.dumps(event_counts)
+
 @app.route('/sample_profile/<sample_filename>')
+@app.route('/sample_id:<sample_filename>')
 def show_sample_profile(sample_filename):
 	global current_sample
 	current_sample = sample_filename
@@ -67,6 +72,21 @@ def js_sample_profile():
 	calls = vcf2array.getCallsForSample(vcf_filename)
 
 	return render_template('sample_profile.js', vcf_filename=vcf_filename, calls=calls)
+
+@app.route('/sv_profile/sample_id:<sample_filename>/event_id:<event_id>')
+@app.route('/sample_id:<sample_filename>/event_id:<event_id>')
+def show_sv_profile(sample_filename, event_id):
+	global current_sample
+
+	current_sample = sample_filename
+	vcf_filename=join(input_path, current_sample + '.vcf')
+
+	breakends = vcf2array.getBreakends(vcf_filename, event_id)
+	return render_template('sv_profile.html', breakends=breakends)
+
+@app.route('/sv_profile.js')
+def js_sv_profile():
+	return render_template('event_counts.js')
 
 if __name__ == '__main__':
 	app.debug = True

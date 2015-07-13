@@ -12,15 +12,22 @@ Example:
 
 # Imports *****************************************************************
 
+# Local modules
+import vcf_sv_specifc_variables
+
 # Built-in modules
-from os import listdir
-from os.path import isfile, join
+from os import listdir, makedirs
+from os.path import isfile, join, exists
 from collections import defaultdict, OrderedDict
 import re
 import subprocess
+import sys
+import json 
+import shutil
 
 # Third party modules
 import vcf
+import pysam
 from profilehooks import profile, timecall
 
 # Authorship Information **************************************************
@@ -29,7 +36,7 @@ __author__ = "Lindsey Fernandez"
 __copyright__ = "Copyright 2015, Gehlenborg SV Visualization Project"
 __credits___ = []
 
-__license__ = "GPL"
+__license__ = "MIT"
 __version__ = "1.0.0"
 __maintainer__ = "Lindsey Fernandez"
 __email__ = "lferna15@jhu.edu"
@@ -48,31 +55,80 @@ def loadAll2Gemini(input_path):
         current_name = vcf_filename.split('.')[0].strip() # temporary
         loadSingleVCF2Gemini(join(input_path,vcf_filename))
 
-# VCF array methods ******************************************************
+# Preprocessing methods **************************************************
 
-def loadSingleVCF(vcf_filename):
+def preprocessDir(input_path, sorted_path):
+  '''Sorts, bgzips and indexes all .vcf files in a given directory'''
+
+  if exists(sorted_path): # temporary
+    shutil.rmtree(sorted_path)
+  makedirs(sorted_path)
+
+  vcf_filenames = [f for f in listdir(input_path) if f.endswith(".vcf")]
+
+  for vcf_filename in vcf_filenames:
+    original_file = join(input_path, vcf_filename)
+    sorted_file = join(sort_path,vcf_filename)
+
+    sort_command = 'vcf-sort ' + original_file + ' >> ' + sorted_file
+    bgzip_command = 'bgzip ' + sorted_file
+    index_command = 'tabix -p vcf ' + sorted_file + '.gz'
+    all_commands = ' && '.join([sort_command, bgzip_command, index_command])
+
+    subprocess.call([all_commands], shell=True)
+
+# VCF array loading methods **********************************************
+
+def loadSingleVCF(vcf_path):
     '''Load records for a single patient to global records array'''
-    global current_records
+    global current_records, grouped_current_records
 
-    vcf_reader = vcf.Reader(open(vcf_filename, 'r'))
     current_records = []
+    grouped_current_records = defaultdict(list) # temporary
+
+    vcf_reader = vcf.Reader(open(vcf_path, 'r'))
     for record in vcf_reader:
         current_records.append(record)
 
+        event_id = record.INFO['EVENT']
+        grouped_current_records[event_id].append(record)
+
+# Range specific methods *************************************************
+
+def chromSize(chrom_id, species='human', vcf_type='meerkat'):
+  '''Returns sizes of given chromosome'''
+  chrom_id = vcf_sv_specifc_variables.formatChromID(chrom_id, species, vcf_type)
+  chrom_size = vcf_sv_specifc_variables.chromosome_sizes[species][chrom_id] if chrom_id else 0
+  return chrom_size
+
+def fetchBreakends(sample_name, chrom_id, start=None, end=None):
+  if not start: start = 0  # if no start position is provided, start from 0
+  if not end: end = chromSize(chrom_id) # if no end postion is provided, end at the very end
+
+  vcf_path = join(input_path, 'sorted', sample_name + '.vcf.gz')
+  vcf_reader = vcf.Reader(open(vcf_path, 'r'))
+  breakends = vcf_reader.fetch(chrom_id, start, end)
+
+  return breakends
+
+def fetchGenes(start, end):
+  return []
+
+# Event counting methods *************************************************
+
 def countEventTypes():
     '''Returns dictionary of counts for unique events for current records array'''
-    global current_records, current_name, unique_event_totals
+    global current_name, grouped_current_records, unique_event_totals
 
     unique_events = defaultdict(int)
     unique_events['name'] = current_name
-    for record in current_records:
-        event = record.INFO['EVENT']
 
-        match = re.match(r"([a-z_]+)([0-9_]+)", event, re.I)
-        event_type = match.groups()[0][:-1]
+    for event_id in grouped_current_records.keys():
+      match = re.match(r"([a-z_]+)([0-9_]+)", event_id, re.I)
+      event_type = match.groups()[0][:-1]
 
-        unique_events[event_type] +=1
-        unique_event_totals[event_type] += 1
+      unique_events[event_type] +=1
+      unique_event_totals[event_type] += 1
 
     return unique_events
 
@@ -96,6 +152,8 @@ def getEventCounts(input_path):
 
     return unique_events_for_all_patients
 
+# Helpers for external modules *******************************************
+
 def getEventTotals():
     global unique_event_totals
     return OrderedDict(unique_event_totals)
@@ -104,39 +162,25 @@ def getCallsForSample(vcf_filename):
     loadSingleVCF(vcf_filename)
     return current_records
 
-def getColors(vcf_type): 
-    # temporary hack
-
+def getColors(vcf_type='meerkat'): 
     if vcf_type is 'meerkat':
-        meerkat_colors = {
-          'del': '#FF0000',       # deletion with no insertion
-          'del_ins': '#3D0000',   # deletion with insertion at breakpoint (source unknown)
-          'del_inssd': '#660000', # deletion with insertion at breakpoint (from same chr, same orientation, downstream of deletion)
-          'del_inssu': '#8F0000',  # deletion with insertion at breakpoint (from same chr, same orientation, upstream of deletion)
-          'del_insod': '#B80000',  # deletion with insertion at breakpoint (from same chr, oppo orientation, downstream of deletion)
-          'del_insou': '#D63333',  # deletion with insertion at breakpoint (from same chr, oppo orientation, upstream of deletion)
-          'del_inss': '#E06666',   # deletion with insertion at breakpoint (from diff chr, same orientation)
-          'del_inso': '#EB9999',   # deletion with insertion at breakpoint (from diff chr, oppo orientation)
-          
-          'del_invers': '#CC0066', # deletion with inversion at breakpoint
+        return vcf_sv_specifc_variables.meerkat_colors
 
-          'inssd': '#004C00',      # insertion (from same chr, same orientation, downstream)
-          'inssu': '#006B00',      # insertion (from same chr, same orientation, upstream)
-          'insod': '#008A00',      # insertion (from same chr, oppo orientation, downsteam)
-          'insou': '#19A319',      # insertion (from same chr, oppo orientation, upstream)
-          'inss': '#4DB84D',       # insertion (from diff chr, same orientation)
-          'inso': '#80CC80',       # insertion (from diff chr, oppo orientation)
-          
-          'invers': '#FF66FF',       # inversion (with reciprocal discordant read pair cluster support)
-          'tandem_dup': '#6600FF',   # tandem duplication
-          'transl_inter': '#FFCC00', # inter-chromosomal translocation
-          'transl_intra': '#33CCFF'  # intra-chromosomal translocation
-        };
-        return meerkat_colors
+def getBreakends(vcf_filename, event_id):
+  loadSingleVCF(vcf_filename)
+  return grouped_current_records[event_id]
+
+def convertRecordToJSON(record):
+  record_dict = record.__dict__
+  print record.alleles
+  print record.ALT
+  for r in record_dict:
+    print r
 
 # Globals ****************************************************************
 # aka temporary hacks
 
+grouped_current_records = [] # keeping both the grouped and ungrouped formats for now
 current_records = []
 current_name = []
 unique_events_for_all_patients = []
@@ -144,9 +188,27 @@ unique_event_totals = defaultdict(int)
 
 # Main Method ************************************************************
 
-#input_path = '../data/meerkat-data/SKCM.Meerkat.vcf/'
-#loadAll2Gemini(input_path)
-#event_counts = getEventCounts(input_path)
+input_path = '/Users/lifernan/Desktop/vcf-sandbox/data/meerkat-data/SKCM.Meerkat.vcf/'
+sorted_path = '/Users/lifernan/Desktop/vcf-sandbox/data/meerkat-data/SKCM.Meerkat.vcf/sorted'
+vcf_filename = 'TCGA-D9-A148.vcf'
+
+#preprocessDir(input_path)
+vcf_path = join(input_path, vcf_filename)
+sorted_path = join(input_path, 'sorted', vcf_filename + '.gz')
+vcf_reader = vcf.Reader(open(sorted_path, 'r'))
+
+'''
+event_id = 'transl_intra_1227143_0'
+breakends = getBreakends(vcf_path, event_id)
+print "start"
+for b in breakends:
+  print "********"
+  print b
+  print b.__dict__
+print "//////"
+convertRecordToJSON(current_records[0])
+print "finish"
+'''
 
 
 

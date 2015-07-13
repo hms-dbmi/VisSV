@@ -10,22 +10,43 @@ body {
 .axis path,
 .axis line {
   fill: none;
-  stroke: #555;
+  stroke: #000;
   shape-rendering: crispEdges;
 }
  
 .axis text {
   fill: #555;
 }
- 
+
+.bar {
+  fill: steelblue;
+  fill-opacity: .9;
+}
+
+.x.axis path {
+  display: none;
+}
+
+label {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+
 .line {
   fill: none;
   stroke: #ef0d0c;
   stroke-width: 1.5px;
 }
- 
-#chart {
-  width: 95%;
-  height: 100%;
-  position: relative;
+
+body {
+  overflow: scroll;
+}
+
+div.bar {
+    display: inline-block;
+    width: 5px;
+    height: 50px;   /* We'll override this later */
+    background-color: teal;
+    margin-left: 2px;
 }
