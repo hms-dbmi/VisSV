@@ -1,3 +1,71 @@
+var event_totals = {{ totals|tojson|safe }};
+var event_types = Object.keys(event_totals);
+
+var num_samples = {{ counts|length }};
+var sampleHeight = 10;
+var scaledHeight = sampleHeight * num_samples;
+var scaledTicCount = num_samples/4;
+
+var chart = c3.generate({
+  size: {
+    height: scaledHeight
+  },
+  bindto: '#chart',
+  data: {
+      json: {{ counts|tojson|safe }},
+      keys: {
+        x: 'name',
+        value: event_types
+      },
+      type: 'bar',
+      groups: [event_types],
+      order: null,
+      colors: {{ colors|tojson|safe }},
+      onclick: function(d, element) {
+        var sample_name = {{ counts|tojson|safe }}[d.x].name;
+        window.location.href = '/sample:'.concat(sample_name);
+      }
+  },
+  axis: {
+    x: {
+      label: {
+        text: 'Sample ID',
+        position: 'outer-middle'
+      },
+      type: 'category',
+      tick: {
+        fit: true,
+        culling: false,
+        multiline: false
+      },
+      padding: {
+        left: 0,
+        right: 0
+      }
+    },
+    y: {
+      show: true,
+      label: {
+        text: 'Number of Events',
+        position: 'inner-right'
+      }
+    },
+    y2: {
+      show: true
+  },
+    rotated: true
+  },
+  legend: {
+    show: true,
+    position: 'right'
+  }
+});
+
+
+
+
+
+// Other experiments with charts down here
 
 // Set up SVG
 
