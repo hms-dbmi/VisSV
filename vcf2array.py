@@ -43,6 +43,7 @@ __status__ = "Prototype"
 
 # Globals ****************************************************************
 # aka temporary hacks
+# TODO make this into a class
 
 INPUT_PATH = '/Users/lifernan/Desktop/vcf-sandbox/data/meerkat-data/SKCM.Meerkat.vcf/'
 SORTED_PATH = '/Users/lifernan/Desktop/vcf-sandbox/data/meerkat-data/SKCM.Meerkat.vcf/sorted'
@@ -51,8 +52,8 @@ CURRENT_SAMPLE = None
 GROUPED_CURRENT_RECORDS = [] # keeping both the grouped and ungrouped formats for now
 CURRENT_RECORDS = []
 
-UNIQUE_EVENTS_IN_COHORT = []
-UNIQUE_EVENT_TOTALS = defaultdict(int)
+EVENTS_PER_SAMPLE = []
+COHORT_EVENT_TOTALS = defaultdict(int)
 
 # Gemini methods *********************************************************
 
@@ -124,8 +125,8 @@ def load_single_vcf(vcf_path):
 
 # Event counting methods *************************************************
 
-def count_event_types():
-    '''Returns dictionary of counts for unique events for current records array'''
+def count_events_in_sample():
+    '''Returns dictionary of counts for unique events in current sample'''
     unique_events = defaultdict(int)
     unique_events['name'] = CURRENT_SAMPLE
 
@@ -134,29 +135,21 @@ def count_event_types():
         event_type = match.groups()[0][:-1]
 
         unique_events[event_type] += 1
-        UNIQUE_EVENT_TOTALS[event_type] += 1
+        COHORT_EVENT_TOTALS[event_type] += 1
 
     return unique_events
 
 def count_events_in_cohort(input_path=INPUT_PATH):
-    '''Get event counts for all VCF files in a given directory'''
-    global UNIQUE_EVENTS_IN_COHORT, CURRENT_SAMPLE
+    '''Collects event counts for all samples in a given directory'''
+    global EVENTS_PER_SAMPLE, CURRENT_SAMPLE
 
     vcf_filenames = [f for f in listdir(input_path) if f.endswith(".vcf")]
-    UNIQUE_EVENTS_IN_COHORT = []
+    EVENTS_PER_SAMPLE = []
 
     for vcf_filename in vcf_filenames:
         load_single_vcf(join(input_path, vcf_filename))
         CURRENT_SAMPLE = vcf_filename.split('.')[0].strip() # temporary
-        UNIQUE_EVENTS_IN_COHORT.append(count_event_types())
-
-def get_event_counts(input_path=INPUT_PATH):
-    '''Returns dictionary - keys = list of unique SV event types in cohort
-    values = total number of times that event type occured'''
-    if not UNIQUE_EVENTS_IN_COHORT:
-        count_events_in_cohort(input_path)
-
-    return UNIQUE_EVENTS_IN_COHORT
+        EVENTS_PER_SAMPLE.append(count_events_in_sample())
 
 # Region specific methods ************************************************
 
@@ -242,7 +235,7 @@ def is_valid_arrangement(pairs):
     return i and o and s
 
 def ends_match(a, b, inner_match):
-    '''See if matchind ends of a certain arrangement is valid
+    '''See if ends of a certain arrangement can be matched
     e.g. for (x, a) and (b, y): -->x|a-->b|y--> or <--y|b<--a|x<--
       or for (x, a) and (b, y): -->x|a-->b|y--> or <--y|b<--a|x<--
       where x < y, a < b
@@ -308,11 +301,21 @@ def get_colors(vcf_type='meerkat'):
     if vcf_type is 'meerkat':
         return vcf_sv_specifc_variables.meerkat_colors
 
-def get_event_totals():
-    '''Returns event totals as ordered dictionary'''
-    return OrderedDict(UNIQUE_EVENT_TOTALS)
+def get_event_totals_for_cohort(input_path=INPUT_PATH):
+    '''Returns number of occurances of event type in cohort as ordered dictionary'''
+    if not COHORT_EVENT_TOTALS:
+        count_events_in_cohort(input_path)
 
-def get_all_events(sample_name=CURRENT_SAMPLE):
+    return OrderedDict(COHORT_EVENT_TOTALS)
+
+def get_event_counts_per_sample(input_path=INPUT_PATH):
+    '''Returns list of counts of event types for each sample in a given cohort'''
+    if not EVENTS_PER_SAMPLE:
+        count_events_in_cohort(input_path)
+
+    return EVENTS_PER_SAMPLE
+
+def get_events(sample_name=CURRENT_SAMPLE):
     '''Returns VCF records for a single sample, grouped by event id'''
     if sample_name != CURRENT_SAMPLE:
         load_sample(sample_name)
