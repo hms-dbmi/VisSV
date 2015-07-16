@@ -50,3 +50,7 @@ div.bar {
     background-color: teal;
     margin-left: 2px;
 }
+
+.highlight {
+  background-color: #f5f5f5;
+}

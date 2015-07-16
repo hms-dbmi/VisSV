@@ -73,14 +73,6 @@ if __name__ == '__main__':
     else:
         species, chrom_id, start, end = 'human', 'X', 1, 5000000
 
-    print get_genes(species, chrom_id, start, end)
-
-
-
- 
-
-
-
-
-
-
+    genes = get_genes(species, chrom_id, start, end)
+    print json.dumps(genes, indent=4)
+    print "Number of genes in {0}:{1}-{2} = {3}".format(chrom_id, start, end, len(genes))

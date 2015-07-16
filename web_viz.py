@@ -22,6 +22,7 @@ import numpy as np
 
 # Local modules
 import vcf2array
+import ensembl_requests
 
 # Authorship Information **************************************************
 
@@ -39,9 +40,13 @@ __status__ = "Prototype"
 
 app = Flask(__name__)
 input_path = '../data/meerkat-data/SKCM.Meerkat.vcf/'
+
+# horrible hacks
 event_counts = vcf2array.getEventCounts(input_path)
 event_totals = vcf2array.getEventTotals()
 current_sample = ''
+attrs_to_show = ['CHROM', 'POS', 'REF', 'ALT']
+breakends = None
 
 @app.route('/')
 @app.route('/cohort')
@@ -61,7 +66,8 @@ def json_event_counts():
 def show_sample_profile(sample_filename):
 	global current_sample
 	current_sample = sample_filename
-	return render_template('sample.html', sample_filename=sample_filename)
+	events = vcf2array.getAllEvents(sample_filename)
+	return render_template('sample.html', sample_filename=sample_filename, events=events)
 
 @app.route('/sample.js')
 def js_sample_profile():
@@ -72,20 +78,37 @@ def js_sample_profile():
 	return render_template('sample.js', vcf_filename=vcf_filename, calls=calls)
 
 # TODO Add region level view here 
+@app.route('/sample:<sample_filename>/<chrom_id>:<start>-<end>')
+def show_region():
+	return render_template('region.html')
+
+@app.route('/region.js')
+def js_region():
+	return render_template('region.js')
 
 @app.route('/sample:<sample_filename>/event:<event_id>')
-def show_sv_profile(sample_filename, event_id):
-	global current_sample
+@app.route('/sample:<sample_filename>/event:<event_id>/<pair_id>')
+def show_sv_profile(sample_filename, event_id, pair_id=None):
+	global breakends, attrs_to_show
 
-	current_sample = sample_filename
-	vcf_filename=join(input_path, current_sample + '.vcf')
+	if pair_id:
+		event_id = join(event_id, pair_id)
 
-	breakends = vcf2array.getBreakends(vcf_filename, event_id)
-	return render_template('sv.html', breakends=breakends)
+	breakends = vcf2array.getBreakends(sample_filename, event_id)
+	
+	#genes = ensembl_requests.get_genes()
+	return render_template('sv.html', sample_filename=sample_filename, event_id=event_id, breakends=breakends,attrs_to_show=attrs_to_show)
 
-@app.route('/sv_profile.js')
+@app.route('/sv.js')
 def js_sv_profile():
-	return render_template('sv.js')
+	global breakends, attrs_to_show
+	return render_template('sv.js', breakends=breakends, attrs_to_show=attrs_to_show)
+
+@app.route('/genes/<chrom_id>:<start>-<end>')
+@app.route('/genes/<species>/<chrom_id>:<start>-<end>')
+def json_genes(chrom_id, start, end, species='human'):
+	genes = ensembl_requests.get_genes(species, chrom_id, start, end)
+	return json.dumps(genes)
 
 if __name__ == '__main__':
 	app.debug = True
