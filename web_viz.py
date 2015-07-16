@@ -72,10 +72,7 @@ def show_sample_profile(sample_filename):
 @app.route('/sample.js')
 def js_sample_profile():
 	global current_sample
-	vcf_filename=join(input_path, current_sample + '.vcf')
-	calls = vcf2array.getCallsForSample(vcf_filename)
-
-	return render_template('sample.js', vcf_filename=vcf_filename, calls=calls)
+	return render_template('sample.js')
 
 # TODO Add region level view here 
 @app.route('/sample:<sample_filename>/<chrom_id>:<start>-<end>')
