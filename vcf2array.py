@@ -24,7 +24,7 @@ import re
 import subprocess
 import shutil
 from operator import itemgetter
-
+from copy import deepcopy
 # Third party modules
 import vcf
 #from profilehooks import profile, timecall
@@ -49,6 +49,7 @@ INPUT_PATH = '/Users/lifernan/Desktop/vcf-sandbox/data/meerkat-data/SKCM.Meerkat
 SORTED_PATH = '/Users/lifernan/Desktop/vcf-sandbox/data/meerkat-data/SKCM.Meerkat.vcf/sorted'
 CURRENT_SAMPLE = None
 
+json_records = []
 GROUPED_CURRENT_RECORDS = [] # keeping both the grouped and ungrouped formats for now
 CURRENT_RECORDS = []
 
@@ -125,15 +126,20 @@ def load_single_vcf(vcf_path):
 
 # Event counting methods *************************************************
 
+def get_event_type(event_id): #, vcf_type='meerkat'):
+    #if vcf_type is 'meerkat':
+    match = re.match(r"([a-z_]+)([0-9_]+)", event_id, re.I)
+    event_type = match.groups()[0][:-1]
+    return event_type
+    #return None
+
 def count_events_in_sample():
     '''Returns dictionary of counts for unique events in current sample'''
     unique_events = defaultdict(int)
     unique_events['name'] = CURRENT_SAMPLE
 
     for event_id in GROUPED_CURRENT_RECORDS.keys():
-        match = re.match(r"([a-z_]+)([0-9_]+)", event_id, re.I)
-        event_type = match.groups()[0][:-1]
-
+        event_type = get_event_type(event_id)
         unique_events[event_type] += 1
         COHORT_EVENT_TOTALS[event_type] += 1
 
@@ -185,7 +191,7 @@ def fetch_genes(chrom_id, start, end, species='human'):
 
 def breakends_to_arrangement(breakends):
     '''Returns arrangement given list of breakends'''
-    breakends = breakends[::2] # use every other breakend (assumes reciprocal pairs)
+    #breakends = breakends[::2] # use every other breakend (assumes reciprocal pairs)
 
     pairs = []
     for breakend in breakends:
@@ -194,6 +200,7 @@ def breakends_to_arrangement(breakends):
         pair = [(breakend.CHROM, breakend.POS, allele.remoteOrientation),
                 (allele.chr, allele.pos, allele.orientation)]
         pairs.append(pair)
+
     pairs = sort_pairs(pairs)
 
     if len(pairs) > 1:
@@ -250,13 +257,12 @@ def ends_match(a, b, inner_match):
     return False
 
 def is_valid_stream(pairs): # terrible hack
-    '''Make sure insertion from same chrom is upstream or downstream, not overlaping'''
+    '''Make sure insertion from same chrom is upstream or downstream, or an inversion, 
+    but not overlaping the outer ends'''
     [x, a], [b, y] = pairs
     if not x[0] == a[0] == b[0] == y[0]: # check chromosome is the same for all ends
         return True
-    if x[1] < a[1] < y[1] or x[1] < b[1] < y[1]:
-        return False
-    return True
+    return (x[1] < a[1] < y[1]) == (x[1] < b[1] < y[1]) 
 
 # JSONification methods **************************************************
 
@@ -269,7 +275,7 @@ def record_list_to_dict(records):
 
 def record_to_dict(record):
     '''Convery pyvcf _Record object to dictionary'''
-    record_dict = record.__dict__
+    record_dict = deepcopy(record).__dict__
 
     # Delete redundant values
     if 'samples' in record_dict:
@@ -317,17 +323,22 @@ def get_event_counts_per_sample(input_path=INPUT_PATH):
 
 def get_events(sample_name=CURRENT_SAMPLE):
     '''Returns VCF records for a single sample, grouped by event id'''
+    global json_records
+
     if sample_name != CURRENT_SAMPLE:
         load_sample(sample_name)
 
     json_records = {k: record_list_to_dict(GROUPED_CURRENT_RECORDS[k]) \
-        for k in dict(GROUPED_CURRENT_RECORDS)}
+        for k in GROUPED_CURRENT_RECORDS}
     return json_records
 
 def get_breakends(event_id, sample_name=CURRENT_SAMPLE):
     '''Returns VCF records for a single event id'''
+
     if sample_name != CURRENT_SAMPLE:
         load_sample(sample_name)
+    elif json_records:
+        return json_records[event_id]
 
     breakends = GROUPED_CURRENT_RECORDS[event_id]
     return record_list_to_dict(breakends)
@@ -342,7 +353,12 @@ def get_arrangement(event_id, sample_name=CURRENT_SAMPLE):
 
 # Main Method ************************************************************
 
-#preprocess_dir(input_path, sorted_path)
-#sample_name = 'TCGA-EB-A24C' # 'TCGA-D3-A2JD' #
-#event_id = 'del_insod_468266_0/469894_0' # 'del_invers_1202501_0/1202554_0' #
+# preprocess_dir(input_path, sorted_path)
+# sample_name = 'TCGA-D3-A2JD' # 'TCGA-D3-A2JC' # 'TCGA-EB-A24C' #
+# event_id = 'del_invers_1202501_0/1202554_0' # 'transl_inter_773804' # 'del_insod_468266_0/469894_0' #
+# breakends = get_breakends(event_id, sample_name)
+# print 'breakends'
+# print [(b['CHROM'], b['POS'], b['ALT'].keys()) for b in breakends]
+# print 'arrangement'
+# print get_arrangement(event_id, sample_name)
 
