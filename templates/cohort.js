@@ -1,3 +1,4 @@
+
 var event_totals = {{ totals|tojson|safe }};
 var event_types = Object.keys(event_totals);
 
@@ -129,7 +130,6 @@ svg.append("g")
   .call(xAxis);
 
 
-
 // Set up svg with axes
 
 var margin = {top: 20, right: 100, bottom: 30, left: 40};
@@ -239,6 +239,3 @@ d3.json("/event_counts.json", function(error, data) {
       .text(function(d) { return d.event_name; });
 
 });
-
-
-

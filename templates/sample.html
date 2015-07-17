@@ -1,20 +1,19 @@
 {% extends "layout.html" %}
 {% block body %}
-	<div class="container">
-  	<h3>Sample: {{sample_filename}}</h3>
-  	<p> Position selection track (Chromosome, Position) </p>
-  	<p> Sample track (SVs) </p>
-  	<p> Reference track (Genes)</p>
-  	<p> List affected genes affected (for SV selected on click) </p>
+<div class="container">
+	<h3>Sample: {{sample_filename}}</h3>
+	<p> Position selection track (Chromosome, Position) </p>
+	<p> Sample track (SVs) </p>
+	<p> Reference track (Genes)</p>
+	<p> List affected genes affected (for SV selected on click) </p>
 
-  	<ul>
-	  {% for id in events %}
-	  	<li>
-	  		<a href="/sample:{{sample_filename}}/event:{{id}}">{{id}}</a> <!-- {{id}}: {{events[id]}} -->
-	  	</li>
-	  {% endfor %}
-	  </ul>
-  </div>
+	<ul>
+  {% for id in events %}
+  	<li>
+  		<a href="/sample:{{sample_name}}/event:{{id}}">{{id}}</a> <!-- {{id}}: {{events[id]}} -->
+  	</li>
+  {% endfor %}
+  </ul>
+</div>
 
-	<script type="text/javascript" src="/sample.js"></script>
 {% endblock %}

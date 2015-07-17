@@ -45,7 +45,6 @@ event_counts = vcf2array.get_event_counts_per_sample(input_path)
 event_totals = vcf2array.get_event_totals_for_cohort(input_path)
 current_sample = ''
 attrs_to_show = ['CHROM', 'POS', 'REF', 'ALT']
-breakends = None
 
 @app.route('/')
 @app.route('/cohort')
@@ -61,47 +60,32 @@ def js_event_counts():
 def json_event_counts():
     return json.dumps(event_counts)
 
-@app.route('/sample:<sample_filename>')
-def show_sample_profile(sample_filename):
-    global current_sample
-    current_sample = sample_filename
-    events = vcf2array.get_events(sample_filename)
-    return render_template('sample.html', sample_filename=sample_filename, events=events)
+@app.route('/sample:<sample_name>')
+def show_sample_profile(sample_name):
+    events = vcf2array.get_events(sample_name)
+    return render_template('sample.html', sample_name=sample_name, events=events)
 
-@app.route('/sample.js')
-def js_sample_profile():
-    return render_template('sample.js')
-
-# TODO Add region level view here
-@app.route('/sample:<sample_filename>/<chrom_id>:<start>-<end>')
+@app.route('/sample:<sample_name>/<chrom_id>:<start>-<end>')
 def show_region():
+    # TODO Add region level view here
     return render_template('region.html')
 
-@app.route('/region.js')
-def js_region():
-    return render_template('region.js')
-
-@app.route('/sample:<sample_filename>/event:<event_id>')
-@app.route('/sample:<sample_filename>/event:<event_id>/<pair_id>')
-def show_sv_profile(sample_filename, event_id, pair_id=None):
-    global breakends
-
+@app.route('/sample:<sample_name>/event:<event_id>')
+@app.route('/sample:<sample_name>/event:<event_id>/<pair_id>')
+def show_sv_profile(sample_name, event_id, pair_id=None):
     if pair_id:
         event_id = join(event_id, pair_id)
-
-    breakends = vcf2array.get_breakends(event_id, sample_filename)
-
-    #genes = ensembl_requests.get_genes()
-    return render_template('sv.html', sample_filename=sample_filename, \
-        event_id=event_id, breakends=breakends, attrs_to_show=attrs_to_show)
-
-@app.route('/sv.js')
-def js_sv_profile():
-    return render_template('sv.js', breakends=breakends, attrs_to_show=attrs_to_show)
+    breakends = vcf2array.get_breakends(event_id, sample_name)
+    arrangement = vcf2array.get_arrangement(event_id, sample_name)
+    print arrangement
+    return render_template('sv.html', sample_name=sample_name, \
+        event_id=event_id, event_type=vcf2array.get_event_type(event_id), \
+        breakends=breakends, arrangement=arrangement, attrs_to_show=attrs_to_show)
 
 @app.route('/genes/<chrom_id>:<start>-<end>')
 @app.route('/genes/<species>/<chrom_id>:<start>-<end>')
 def json_genes(chrom_id, start, end, species='human'):
+    # TODO may want to move request into javascript
     genes = ensembl_requests.get_genes(species, chrom_id, start, end)
     return json.dumps(genes)
 
