@@ -43,6 +43,12 @@ body {
   overflow: scroll;
 }
 
+div #breakend-viz {
+  overflow: scroll;
+  width: 500;
+  height: 100;
+}
+
 div.bar {
     display: inline-block;
     width: 5px;
@@ -53,4 +59,18 @@ div.bar {
 
 .highlight {
   background-color: #f5f5f5;
+}
+
+g.select-label > text {
+  background-color: #f5f5f5;
+  font-weight: bolder;
+}
+g.select-label > line {
+  stroke-width: 3;
+}
+.bolded {
+  font-weight: bold;
+}
+.fixed-table-container {
+  border-style: none;
 }

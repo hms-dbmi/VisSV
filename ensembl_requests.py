@@ -59,11 +59,21 @@ class EnsemblRestClient(object):
 	    		params={'feature': 'gene'})
 	    	return genes
 
+    def request_exons(self, species, chrom_id, start, end):
+	    	exons = self.perform_rest_action(
+	    		'/overlap/region/{0}/{1}:{2}-{3}'.format(species, chrom_id, start, end),
+	    		params={'feature': 'exon'})
+	    	return exons
+
 # Helpers for external modules *******************************************
 
 def get_genes(species, chrom_id, start, end):
     client = EnsemblRestClient()
     return client.request_genes(species, chrom_id, start, end)
+
+def get_exons(species, chrom_id, start, end):
+    client = EnsemblRestClient()
+    return client.request_exons(species, chrom_id, start, end)
 
 # Main Method ************************************************************
 
@@ -75,4 +85,7 @@ if __name__ == '__main__':
 
     genes = get_genes(species, chrom_id, start, end)
     print json.dumps(genes, indent=4)
-    print "Number of genes in {0}:{1}-{2} = {3}".format(chrom_id, start, end, len(genes))
+    exons = get_exons(species, chrom_id, start, end)
+    print json.dumps(exons, indent=4)
+    print "Number of genes in {0}:{1}-{2} = {3}".format(chrom_id, start, end, len(genes) if genes else 0)
+    print "Number of exons in {0}:{1}-{2} = {3}".format(chrom_id, start, end, len(exons) if exons else 0)

@@ -25,6 +25,7 @@ import subprocess
 import shutil
 from operator import itemgetter
 from copy import deepcopy
+
 # Third party modules
 import vcf
 #from profilehooks import profile, timecall
@@ -55,22 +56,6 @@ CURRENT_RECORDS = []
 
 EVENTS_PER_SAMPLE = []
 COHORT_EVENT_TOTALS = defaultdict(int)
-
-# Gemini methods *********************************************************
-
-def load_sample_to_gemini(vcf_filename):
-    '''Load single VCF file to local Gemini database'''
-    gem_command = 'gemini load -v ' + vcf_filename + ' gemini.db'
-    subprocess.call([gem_command], shell=True)
-
-def load_cohort_to_gemini(input_path=INPUT_PATH):
-    '''Load directory of VCF files to local Gemini database'''
-    global CURRENT_SAMPLE
-
-    vcf_filenames = [f for f in listdir(input_path) if f.endswith(".vcf")]
-    for vcf_filename in vcf_filenames:
-        CURRENT_SAMPLE = vcf_filename.split('.')[0].strip() # temporary
-        load_sample_to_gemini(join(input_path, vcf_filename))
 
 # Preprocessing methods **************************************************
 
@@ -159,12 +144,6 @@ def count_events_in_cohort(input_path=INPUT_PATH):
 
 # Region specific methods ************************************************
 
-def get_chrom_size(chrom_id, species='human', vcf_type='meerkat'):
-    '''Returns size of given chromosome'''
-    chrom_id = vcf_sv_specifc_variables.formatChromID(chrom_id, species, vcf_type)
-    chrom_size = vcf_sv_specifc_variables.chromosome_sizes[species][chrom_id] if chrom_id else 0
-    return chrom_size
-
 def fetch_breakends(chrom_id, start=0, end=None, sample_name=CURRENT_SAMPLE):
     '''Returns breakends within a given region on a chromosome'''
     if not end:
@@ -173,8 +152,13 @@ def fetch_breakends(chrom_id, start=0, end=None, sample_name=CURRENT_SAMPLE):
     vcf_path = join(SORTED_PATH, sample_name + '.vcf.gz')
     vcf_reader = vcf.Reader(open(vcf_path, 'r'))
     breakends = vcf_reader.fetch(chrom_id, start, end)
-
     return breakends
+
+def get_chrom_size(chrom_id, species='human', vcf_type='meerkat'):
+    '''Returns size of given chromosome'''
+    chrom_id = vcf_sv_specifc_variables.formatChromID(chrom_id, species, vcf_type)
+    chrom_size = vcf_sv_specifc_variables.chromosome_sizes[species][chrom_id] if chrom_id else 0
+    return chrom_size
 
 def fetch_genes(chrom_id, start, end, species='human'):
     '''Returns JSON list of genes in a given region, or None if request is
@@ -200,7 +184,6 @@ def breakends_to_arrangement(breakends):
         pair = [(breakend.CHROM, breakend.POS, allele.remoteOrientation),
                 (allele.chr, allele.pos, allele.orientation)]
         pairs.append(pair)
-
     pairs = sort_pairs(pairs)
 
     if len(pairs) > 1:
@@ -334,7 +317,6 @@ def get_events(sample_name=CURRENT_SAMPLE):
 
 def get_breakends(event_id, sample_name=CURRENT_SAMPLE):
     '''Returns VCF records for a single event id'''
-
     if sample_name != CURRENT_SAMPLE:
         load_sample(sample_name)
     elif json_records:
@@ -351,6 +333,45 @@ def get_arrangement(event_id, sample_name=CURRENT_SAMPLE):
     breakends = GROUPED_CURRENT_RECORDS[event_id]
     return breakends_to_arrangement(breakends)
 
+def get_blocks(event_id, bp_range=10000, sample_name=CURRENT_SAMPLE):
+    '''Returns arragement as a series of blocks, convenient for displaying'''
+    if sample_name != CURRENT_SAMPLE:
+        load_sample(sample_name)
+
+    breakends = GROUPED_CURRENT_RECORDS[event_id]
+    arrangement = breakends_to_arrangement(breakends)
+
+    # another horrible hack
+    ends = []
+    for a, b in arrangement:
+        ends.append(list(a))
+        ends.append(list(b))
+
+    first = deepcopy(ends[0])
+    first[1] += bp_range if first[2] else -bp_range
+    first[2] = not first[2]
+    ends = [first] + ends
+
+    last = deepcopy(ends[-1])
+    last[1] += bp_range if last[2] else -bp_range
+    last[2] = not last[2]
+    ends.append(last)
+
+    print ends
+    
+    it = iter(ends)
+    blocks = []
+    for x in it:
+        y = next(it)
+        block = {}
+        block['start'] = {'chrom': x[0], 'pos': x[1], 'orientation': x[2]}
+        block['end'] = {'chrom': y[0], 'pos': y[1], 'orientation': y[2]}
+        block['dir'] = block['start']['pos'] < block['end']['pos']
+        blocks.append(block)
+
+    print blocks
+    return blocks
+
 # Main Method ************************************************************
 
 # preprocess_dir(input_path, sorted_path)
@@ -360,5 +381,9 @@ def get_arrangement(event_id, sample_name=CURRENT_SAMPLE):
 # print 'breakends'
 # print [(b['CHROM'], b['POS'], b['ALT'].keys()) for b in breakends]
 # print 'arrangement'
-# print get_arrangement(event_id, sample_name)
+# arrangement= get_arrangement(event_id, sample_name)
+# print arrangement
+
+
+
 
