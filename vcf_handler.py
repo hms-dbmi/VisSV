@@ -333,7 +333,7 @@ def get_arrangement(event_id, sample_name=CURRENT_SAMPLE):
     breakends = GROUPED_CURRENT_RECORDS[event_id]
     return breakends_to_arrangement(breakends)
 
-def get_blocks(event_id, bp_range=10000, sample_name=CURRENT_SAMPLE):
+def get_blocks(event_id, bp_range=100000, sample_name=CURRENT_SAMPLE):
     '''Returns arragement as a series of blocks, convenient for displaying'''
     if sample_name != CURRENT_SAMPLE:
         load_sample(sample_name)
@@ -371,6 +371,17 @@ def get_blocks(event_id, bp_range=10000, sample_name=CURRENT_SAMPLE):
 
     print blocks
     return blocks
+
+def genes_in_blocks(blocks):
+    genes_per_block = []
+    for block in blocks:
+        chrom_id = block['start']['chrom']
+        start = block['start']['pos']
+        end = block['end']['pos']
+        genes = ensembl_requests.get_genes(chrom_id, start, end) if start < end \
+            else ensembl_requests.get_genes(chrom_id, end, start) 
+        genes_per_block.append(genes);
+    return genes_per_block
 
 # Main Method ************************************************************
 

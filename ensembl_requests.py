@@ -67,11 +67,11 @@ class EnsemblRestClient(object):
 
 # Helpers for external modules *******************************************
 
-def get_genes(species, chrom_id, start, end):
+def get_genes(chrom_id, start, end, species='human'):
     client = EnsemblRestClient()
     return client.request_genes(species, chrom_id, start, end)
 
-def get_exons(species, chrom_id, start, end):
+def get_exons(chrom_id, start, end, species='human'):
     client = EnsemblRestClient()
     return client.request_exons(species, chrom_id, start, end)
 
@@ -83,9 +83,9 @@ if __name__ == '__main__':
     else:
         species, chrom_id, start, end = 'human', 'X', 1, 5000000
 
-    genes = get_genes(species, chrom_id, start, end)
-    print json.dumps(genes, indent=4)
     exons = get_exons(species, chrom_id, start, end)
     print json.dumps(exons, indent=4)
+    genes = get_genes(species, chrom_id, start, end)
+    print json.dumps(genes, indent=4)
     print "Number of genes in {0}:{1}-{2} = {3}".format(chrom_id, start, end, len(genes) if genes else 0)
     print "Number of exons in {0}:{1}-{2} = {3}".format(chrom_id, start, end, len(exons) if exons else 0)

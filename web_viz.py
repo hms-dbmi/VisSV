@@ -80,11 +80,12 @@ def sv(sample_name, event_id, pair_id=None):
     breakends = vcf_handler.get_breakends(event_id, sample_name)
     arrangement = vcf_handler.get_arrangement(event_id, sample_name)
     blocks = vcf_handler.get_blocks(event_id, sample_name=sample_name)
-    print 'blocks', blocks
+    genes = vcf_handler.genes_in_blocks(blocks);
+
     return render_template('sv.html', sample_name=sample_name, \
         event_id=event_id, event_type=vcf_handler.get_event_type(event_id), \
         breakends=breakends, arrangement=arrangement, blocks=blocks, \
-        attrs_to_show=attrs_to_show)
+        attrs_to_show=attrs_to_show, genes=genes)
 
 # trying out
 @app.route('/sample:<sample_name>/event:<event_id>/sv_blocks.json')
@@ -99,7 +100,7 @@ def json_sv_blocks(sample_name, event_id, pair_id=None):
 @app.route('/genes/<species>/<chrom_id>:<start>-<end>')
 def json_genes(chrom_id, start, end, species='human'):
     # TODO may want to move request into javascript
-    genes = ensembl_requests.get_genes(species, chrom_id, start, end)
+    genes = ensembl_requests.get_genes(chrom_id, start, end, species)
     return json.dumps(genes)
 
 if __name__ == '__main__':

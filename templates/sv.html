@@ -14,23 +14,10 @@
 	</table>
 
   <h4>Structure View</h4>
-  <div id="breakend-viz">
-    
-  </div>
+  <div id="breakend-viz"></div>
   
-  <div id="gene-list">
-    <h4></h4>
-    <table id="gene-list-table" class="table-no-bordered"  data-toggle="table" data-cache="false" data-height="225">
-      <thead><tr>
-        <th data-field="external_name">Name</th> 
-        <th data-field="start">Start</th> 
-        <th data-field="end">End</th> 
-        <th data-field="biotype">Biotype</th> 
-        <th data-field="description">Description</th> 
-      </tr></thead>
-      <tbody></tbody>
-    </table>
-  </div>
+  <h4>Genes near break points</h4>
+  <div id="gene-list" class="row"></div>
 
 </div>
 
@@ -39,16 +26,17 @@ var event_type = {{ event_type|tojson|safe }};
 var breakends = {{ breakends|tojson|safe }};
 var columns = {{ attrs_to_show|tojson|safe }};
 var selected_breakend = breakends[0];
-var gene_range = 1000000; // in bp
 var arrangement = {{ arrangement|tojson|safe }};
+var num_breakpoints = arrangement.length;
 var blocks = {{ blocks|tojson|safe }};
+var genes = {{ genes|tojson|safe }};
 
-// SV Visualization
+// SV Visualization ******************************************************
 
 // SVG setup 
 
 var svg_width = 1000;
-var svg_height = 150;
+var svg_height = 120;
 var viz = d3.select("#breakend-viz").append("svg")
   .attr('height', svg_height);
 
@@ -82,7 +70,6 @@ var arrow = function(xLength, yPad, direction) {
 
   return lineFunction(lineData);
 };
-
 
 // Load JSON data on blocks
 var json_blocks_url = '/sample:{{sample_name}}/event:{{event_id}}/sv_blocks.json';
@@ -229,7 +216,7 @@ d3.json(json_blocks_url, function(error, data) {
 });
 
 
-// Create breakend table
+// Create breakend table *************************************************
 
 var rows = d3.select("#breakend-list tbody").selectAll('tr')
   .data(breakends)
@@ -240,7 +227,7 @@ var rows = d3.select("#breakend-list tbody").selectAll('tr')
   })
   .on("click", function(d, i) {
     selected_breakend = d;
-    get_genes();
+    //get_genes();
     $('#breakend-list').find('tr.highlight').removeClass('highlight');
     $(this).addClass('highlight');
   });
@@ -262,49 +249,116 @@ var cells = rows.selectAll("td")
     return d;
   });
 
-// Create list of genes around a selected breakend
+// Create list of genes around a selected breakend ***********************
 
 /* TODO
 1. use strict ranges (use block regions as cutoffs)
 2. show indicators of function (cancer-related particularly)
 */
 
+var gene_attrs_to_show = ['external_name', 'start', 'end', 'biotype'];
+var gene_headers = ['Name', 'Start', 'End', 'Biotype'];
 var gene_list = d3.select("#gene-list");
+var genes_top, genes_bottom, combined_list, start, end, breakpoint_index;
+var table_width = Math.round(12/num_breakpoints);
+
+// Make one gene table per breakpoint
+for (var bp_i =0; bp_i < num_breakpoints; bp_i++) {
+  var gene_div = gene_list.append('div')
+    .classed('col-xs-' + table_width, true)
+    .classed('container', true)
+
+  start = blocks[bp_i].end;
+  end = blocks[bp_i + 1].start;
+  var bp_name = start.chrom + ':' + start.pos + ' | ' + end.chrom + ':' + end.pos;
+  gene_div.append('div')
+    .classed('panel-heading', true)
+    .text(bp_name);
+
+  var gene_table = gene_div.append('div')
+      .classed('container-fluid', true)
+    .append('table')
+      .classed('table-no-bordered', true)
+      .attr('data-toggle', 'table')
+      .attr('data-cache', false)
+      .attr('data-height', '225')
+      .attr('id', 'gene-table-' + bp_i);
+
+  gene_table.append('thead').append('tr').selectAll('th')
+      .data(gene_attrs_to_show).enter()
+      .append('th')
+      .attr('data-field', function (d) { return d; })
+      .text(function (d, i) { return gene_headers[i]; });
+
+  gene_table.append('tbody');
+
+  genes_top = genes[bp_i];
+  genes_bottom = genes[bp_i+1];
+  breakpoint_index = genes[bp_i].length;
+
+  combined_list = genes_top.concat(genes_bottom);
+
+  var table = $('#gene-table-' + bp_i);
+  table.bootstrapTable({data: combined_list});
+  table.bootstrapTable('resetWidth');
+
+  d3.select('#gene-table-' + bp_i)
+    .selectAll('tr[data-index="' + breakpoint_index + '"]')
+    .attr('style', 'border-top: solid black;')
+  d3.select('#gene-table-' + bp_i).selectAll('tbody tr')
+    .attr('style', function(d, i) {
+      var new_style = 'color: ' + block_color[bp_i + (i >= breakpoint_index)] + ';';
+      var old_style = d3.select(this).attr('style');
+      return ((old_style) ? old_style : '')  + new_style
+    });
+}
+
+
+
+
+/*
 var gene_list_title = gene_list.select("h4");
 var gene_list_headings = gene_list.select('thead tr');
+// Initialize table
 
 
-var last_url, j;
+// Update table
+
 var get_genes = function() {
+  // Create url
   var chrom_id = selected_breakend['CHROM'];
   var position = selected_breakend['POS'];
   var start = position - gene_range;
   var end = position + gene_range;
   var url = '/genes/' + chrom_id + ':' + start + '-' + end;
 
-  var heading_msg = "Genes within " + gene_range + "bp of selected breakend " + selected_breakend['CHROM'] + ':' + selected_breakend['POS'];
-  gene_list_title.text(heading_msg);
- 
+  // Update table if url has changed
   if (url != last_url) {
     $.getJSON(url, function(json){
+      // Create table title
+      var heading_msg = "Genes within " + gene_range + "bp of selected breakend " + selected_breakend['CHROM'] + ':' + selected_breakend['POS'];
+      gene_list_title.text(heading_msg);
+
       if (json) {
+        // Format biotype column
         for(var i=0; i<json.length; i++) { // inefficient (need to figure out how bootstrap-table formatter works)
           json[i]['biotype'] = json[i]['biotype'].replace('_', ' ');
         }
-        $('#gene-list-table').bootstrapTable('load', json);
 
-        // D3-ify (data binding)
-        var rows = gene_list.select('tbody').selectAll('tr');
+        // Load json into bootstrap-table via url
+        $('#gene-table').bootstrapTable('load', json);
+        $('#table').bootstrapTable('resetWidth');
+
+        // D3-ify (bind data to html elements)
+        rows = gene_list.select('tbody').selectAll('tr')
         rows.data(json).enter();
 
-        var cols = a.selectAll('td');
+        cols = rows.selectAll('td');
         cols.data(function(d) {
-          return [d.external_name, d.start, d.end, d.biotype, d.description];
+          return _.values(_.pick(d, gene_attrs_to_show));
         }).enter();
-        
         cols.attr('class', function(d, i) {
-          var attr = ['external_name', 'start', 'end', 'biotype', 'description']; // redundant
-          return attr[i];
+          return gene_attrs_to_show[i];
         })
 
         // Add links to name column
@@ -315,62 +369,12 @@ var get_genes = function() {
             return 'http://www.genecards.org/cgi-bin/carddisp.pl?gene=' + d3.select(this.parentNode.parentNode).datum().id;
           })
           .text(function (d) { return d; });
-
-      }
+      } 
     });
     last_url = url;
   }
-  /*
-  if (url !== last_url) {
-
-    /*
-    
-        response = json;
-        //gene_list.select('tbody').selectAll('tr').remove(); // Clean out old listings 
-
-        var heading_msg;
-        if (response && response.length) {
-          
-        /*
-          gene_list_headings.selectAll('th')
-            .data(['Name', 'Start', 'End', 'Biotype', 'Description'])
-            .enter()
-            .append('th')
-            .text(function(d) {
-              return d;
-            })
-            .classed('col-xs-2', true);
-
-          
-          var gene_row = gene_list.select('tbody')
-            .selectAll("tr")
-            .data(response)
-            .enter()
-            .append("tr");
-
-          gene_row
-            .append('td')
-            .append("a")
-            .text(function(d) {
-              return d['external_name'];
-            })
-            .attr("href", function(d) {
-              // Need more flexible link
-              return 'http://www.genecards.org/cgi-bin/carddisp.pl?gene=' + d['id'];
-            });
-
-
-
-          heading_msg = "Genes within " + gene_range + "bp of selected breakend " + selected_breakend['CHROM'] + ':' + selected_breakend['POS'];
-        } else {
-          heading_msg = "No genes were found within " + gene_range + "bp of this breakend.";
-        }
-        gene_list_title.text(heading_msg);
-        last_url = url;
-    });
-  }*/
 };
 get_genes();
-    
+*/    
 </script>
 {% endblock %}
