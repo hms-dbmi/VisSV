@@ -4,7 +4,7 @@
 	<h3>Sample: {{sample_name}}</h3>
 	<h4>SV: {{event_id}}</h4>
 	<br>
-	<table class="table table-hover" id="breakend-list">
+	<table id="breakend-list" class="table table-hover" style='display: none;'>
 		<thead><tr>
 		{% for attr in attrs_to_show %}
 			<th>{{ attr }}</th>
@@ -31,26 +31,63 @@ var num_breakpoints = arrangement.length;
 var blocks = {{ blocks|tojson|safe }};
 var genes = {{ genes|tojson|safe }};
 
+// Helper functions ******************************************************
+
+var isEven = function(n) {
+  return n == parseFloat(n)? !(n%2) : void 0;
+};
+
 // SV Visualization ******************************************************
 
-// SVG setup 
+// Create SVG viewport
+var num_blocks = blocks.length;
+var margin = {top: 20, right: 40, bottom: 20, left: 40};
+var svg_width = $('#breakend-viz').innerWidth() - margin.left - margin.right,
+    svg_height = 120 - margin.top - margin.bottom;
+var axis_height = svg_height/2;
+var tick_height = axis_height;
+var toggleScaleView = false;
 
-var svg_width = 1000;
-var svg_height = 120;
-var viz = d3.select("#breakend-viz").append("svg")
-  .attr('height', svg_height);
+var svg = d3.select("#breakend-viz").append("svg")
+    .attr('style', 'border: solid black 2px;')
+    .attr("width", svg_width + margin.left + margin.right)
+    .attr("height", svg_height + margin.top + margin.bottom);
+var canvas = svg.append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-// Create sequence blocks
+// Create view for each block
+var block_widths = [];
+var domains = [];
+var xAxisGroups = [];
+for (var i=0; i < num_blocks; i++) {
+  // Create scaled x axis
+  var domain = [blocks[i].start.pos, blocks[i].end.pos];
+  var block_width = Math.round(svg_width/num_blocks); // start with schematic view
+  var xScale = d3.scale.linear().domain(domain).range([1, block_width]);
+  var xAxis = d3.svg.axis()
+                    .orient((isEven(i)) ? 'top' : 'bottom')
+                    .tickValues(domain)
+                    .tickSize(tick_height,0)
+                    .scale(xScale);
+  var xAxisGroup = canvas.append('g')
+                    .call(xAxis)
+                    .classed('axis', true)
+                    .attr('block-number', i)
+                    .attr('transform', 'translate(' + i*block_width + ',' +
+                      axis_height + ')');
+  block_widths[i] = block_width;
+  domains[i] = domain;
+  xAxisGroups[i] = xAxisGroup;
+}
 
-var block_scale = 50;
+// Draw block arrows over axes *******************************************
+
 var block_height = 50;
-var block_padding = 0;
-var block_default_w = 10000;
-var block_color = ['rgba(0,0,0,0.8)', 'rgba(0,0,150,0.5)', 'rgba(0,0,0,0.8)'];
-var block_group, rects, arrows, bp_labels, start_label, x0, a;
+var block_color = ['rgba(0,0,0,0.5)', 'rgba(0,0,150,0.5)', 'rgba(0,0,0,0.5)'];
 
+// Helper method for drawing block shape - an arrow that can point left or right
 var arrow = function(xLength, yPad, direction) {
-  // should use transform instead of adding pad
+  // TODO should use transform instead of adding pad
   if (direction) {
     var lineData = [
       { "x": 0,   "y": yPad},  { "x": xLength-20,  "y": yPad},
@@ -73,58 +110,69 @@ var arrow = function(xLength, yPad, direction) {
 
 // Load JSON data on blocks
 var json_blocks_url = '/sample:{{sample_name}}/event:{{event_id}}/sv_blocks.json';
+var block_arrows = [];
 d3.json(json_blocks_url, function(error, data) {
   if (error) throw error;
 
-  x0 = 0;
-  data.forEach(function(d) {
-    var w = Math.abs(d.end.pos - d.start.pos);
-    var x1 = x0 + w;
-    d.x0 = x0;
-    d.w = w;
-    d.x1 = x1;
-    x0 = x1;
-    d.expanded = false;
-  });
-
-  viz.attr('width', (block_default_w/block_scale + block_padding)*data.length);
-  var xScale = d3.scale.linear()
-    .domain([0, x0])
-    .range([0, svg_width]);
-
-  var y = 50;
-  block_group = viz.selectAll('g')
-      .data(data)
-      .enter()
-      .append('g');
-
-  block_group
-      .attr('id', function(d) {
-        d.id = 'chr' + d.start.chrom + '' + d.start.pos;
-        return d.id;
-      })
-      .attr('transform', function(d, i) {
-        d.x_offset = i*(block_default_w/block_scale + block_padding);
-        return 'translate(' + d.x_offset + ', ' + 0 + ')';
-      })
-      .classed('lined', function(d, i) {
-        return (i != 0); // :^C
-      });
-  
-  arrows = block_group.append('path')
-      .classed('sequence_block',true)
+  for (var i=0; i<num_blocks; i++) {
+    block_arrows[i] = xAxisGroups[i].append('path')
+      .classed('block', true)
       .attr('d', function (d) {
-        d.xLength = block_default_w/block_scale;
-        return arrow(d.xLength, 60, d.dir);
+        return arrow(block_widths[i], -tick_height/2, blocks[i].dir);
       })
-      .attr('fill', function(d, i) {
-        return block_color[i];
-      })
-      .on('click', function(d, i) {
-        d.expanded = !d.expanded;
-        expandBlock(d, i);
-      });
+      .style('fill', block_color[i]);
+  }
+});
 
+// Update SVG size *******************************************************
+
+// Rescale SVG when window is resized 
+$(window).resize(function() {
+    svg_width = $('#breakend-viz').innerWidth() - margin.left - margin.right;
+    svg.attr("width", svg_width + margin.left + margin.right)
+    updateBlocks();
+});
+
+// Toggle scaled and schematic views when SVG is clicked 
+var blockLengths = _.map(domains, function(a) { return Math.abs(a[1] - a[0])});
+var sum = d3.sum(blockLengths);
+$('#breakend-viz svg').click(function() {
+  toggleScaleView = !(toggleScaleView);
+  updateBlocks();
+});
+
+// Helper method for updating block widths
+var updateBlocks = function() {
+  if (toggleScaleView) {
+    var windowScale = d3.scale.linear().domain([1, sum]).rangeRound([1, svg_width]);
+    block_widths = _.map(blockLengths, function(a) {return windowScale(a); });
+  } else {
+    var fixed_width = Math.round(svg_width/num_blocks);
+    block_widths = _.map(blockLengths, function(a) {return fixed_width; });
+  }
+
+  var sumPreviousWidths = 0;
+  for (var i=0; i < num_blocks; i++) { 
+    xScale = d3.scale.linear().domain(domains[i]).range([1, block_widths[i]]);
+    xAxis = d3.svg.axis()
+                  .orient((isEven(i)) ? 'top' : 'bottom')
+                  .tickValues(domains[i])
+                  .tickSize(tick_height,0)
+                  .scale(xScale);
+    // d3.selectAll('g.axis') didn't update the axes correctly, hence this array solution
+    xAxisGroups[i]
+      .call(xAxis)
+      .attr('transform', 'translate(' + sumPreviousWidths + ',' + axis_height + ')');
+    sumPreviousWidths += block_widths[i];
+    block_arrows[i].attr('d', function (d) {
+        return arrow(block_widths[i], -tick_height/2, blocks[i].dir);
+      });
+  }
+};
+
+// ***********************************************************************
+
+/*
   bp_labels = viz.selectAll('g.lined')
     .append('g')
     .data(function(d, i){
@@ -216,6 +264,7 @@ d3.json(json_blocks_url, function(error, data) {
 });
 
 
+/*
 // Create breakend table *************************************************
 
 var rows = d3.select("#breakend-list tbody").selectAll('tr')
@@ -258,6 +307,7 @@ var cells = rows.selectAll("td")
 
 var gene_attrs_to_show = ['external_name', 'start', 'end', 'biotype'];
 var gene_headers = ['Name', 'Start', 'End', 'Biotype'];
+var gene_headers_filter = [undefined, undefined, undefined, 'select'];
 var gene_list = d3.select("#gene-list");
 var genes_top, genes_bottom, combined_list, start, end, breakpoint_index;
 var table_width = Math.round(12/num_breakpoints);
@@ -267,7 +317,9 @@ for (var bp_i =0; bp_i < num_breakpoints; bp_i++) {
   var gene_div = gene_list.append('div')
     .classed('col-xs-' + table_width, true)
     .classed('container', true)
+    .attr('max-height', 230);
 
+  // Create title
   start = blocks[bp_i].end;
   end = blocks[bp_i + 1].start;
   var bp_name = start.chrom + ':' + start.pos + ' | ' + end.chrom + ':' + end.pos;
@@ -275,21 +327,25 @@ for (var bp_i =0; bp_i < num_breakpoints; bp_i++) {
     .classed('panel-heading', true)
     .text(bp_name);
 
+  // Create table
+  gene_div.append('div').attr('id', 'filter-bar-' + bp_i);
   var gene_table = gene_div.append('div')
       .classed('container-fluid', true)
     .append('table')
       .classed('table-no-bordered', true)
       .attr('data-toggle', 'table')
-      .attr('data-cache', false)
-      .attr('data-height', '225')
+      .attr('data-height', 230)
+      .attr('data-id-field', 'external_name')
       .attr('id', 'gene-table-' + bp_i);
 
+  // Add column headings
   gene_table.append('thead').append('tr').selectAll('th')
       .data(gene_attrs_to_show).enter()
       .append('th')
       .attr('data-field', function (d) { return d; })
       .text(function (d, i) { return gene_headers[i]; });
 
+  // Populate table body with info on genes on either side of breakpoint
   gene_table.append('tbody');
 
   genes_top = genes[bp_i];
@@ -302,9 +358,12 @@ for (var bp_i =0; bp_i < num_breakpoints; bp_i++) {
   table.bootstrapTable({data: combined_list});
   table.bootstrapTable('resetWidth');
 
+  // Mark breakpoint in list
   d3.select('#gene-table-' + bp_i)
     .selectAll('tr[data-index="' + breakpoint_index + '"]')
     .attr('style', 'border-top: solid black;')
+
+  // Color text to match breakend visualization
   d3.select('#gene-table-' + bp_i).selectAll('tbody tr')
     .attr('style', function(d, i) {
       var new_style = 'color: ' + block_color[bp_i + (i >= breakpoint_index)] + ';';
@@ -375,6 +434,6 @@ var get_genes = function() {
   }
 };
 get_genes();
-*/    
+*/
 </script>
 {% endblock %}

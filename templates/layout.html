@@ -1,22 +1,19 @@
 <!doctype html>
 <head>
 	<title>Flaskr</title>
-	<meta http-equiv="content-type" content="text/html; charset=utf-8">
-	<link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
-	<link rel="stylesheet" type="text/css" href="http://c3js.org/css/c3-b03125fa.css">
-	<link rel="stylesheet" type="text/css" href="https://cdn.rawgit.com/novus/nvd3/v1.8.1/build/nv.d3.css">
-	<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/bootstrap-table/1.8.1/bootstrap-table.min.css">
+	<meta http-equiv="content-type" content="text/html" charset="utf-8">
+	<link rel="stylesheet" type="text/css" href="/static/bootstrap/dist/css/bootstrap.min.css">
+	<link rel="stylesheet" type="text/css" href="/static/bootstrap/dist/css/bootstrap-theme.min.css">
+	<link rel="stylesheet" type="text/css" href="/static/bootstrap-table/dist/bootstrap-table.min.css">
+	<link rel="stylesheet" type="text/css" href="/static/c3/c3.min.css">
 	<link rel="stylesheet" type="text/css" href="/static/style.css">
 
-	<script src="http://c3js.org/js/jquery-1.11.0.min-910066fb.js"></script>
-	<script src="http://c3js.org/js/d3-3.5.0.min-3b564392.js" charset="utf-8"></script>
-	<script src="http://c3js.org/js/c3.min-12912fb6.js"></script>
-	<script src="https://cdn.rawgit.com/novus/nvd3/v1.8.1/build/nv.d3.min.js"></script>
-	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
-	<script src="//cdnjs.cloudflare.com/ajax/libs/bootstrap-table/1.8.1/bootstrap-table.min.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
-
-
+	<script src="/static/jquery/dist/jquery.min.js"></script>
+	<script src="/static/bootstrap/dist/js/bootstrap.min.js"></script>
+	<script src="/static/bootstrap-table/dist/bootstrap-table.min.js"></script>
+	<script src="/static/d3/d3.min.js"></script>
+	<script src="/static/c3/c3.min.js"></script>
+	<script src="/static/underscore/underscore-min.js"></script>
 </head>
 <div class=page>
   {% for message in get_flashed_messages() %}

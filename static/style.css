@@ -9,13 +9,14 @@ body {
  
 .axis path,
 .axis line {
-  fill: none;
-  stroke: #000;
-  shape-rendering: crispEdges;
+    fill: none;
+    stroke: black;
+    shape-rendering: crispEdges;
 }
- 
+
 .axis text {
-  fill: #555;
+    font-family: sans-serif;
+    font-size: 11px;
 }
 
 .bar {
@@ -45,7 +46,7 @@ body {
 
 div #breakend-viz {
   overflow: scroll;
-  width: 500;
+  width: 300;
   height: 100;
 }
 
