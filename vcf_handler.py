@@ -383,6 +383,17 @@ def genes_in_blocks(blocks):
         genes_per_block.append(genes);
     return genes_per_block
 
+def exons_in_blocks(blocks): # TODO dry this
+    exons_per_block = []
+    for block in blocks:
+        chrom_id = block['start']['chrom']
+        start = block['start']['pos']
+        end = block['end']['pos']
+        exons = ensembl_requests.get_exons(chrom_id, start, end) if start < end \
+            else ensembl_requests.get_exons(chrom_id, end, start) 
+        exons_per_block.append(exons);
+    return exons_per_block
+
 # Main Method ************************************************************
 
 # preprocess_dir(input_path, sorted_path)

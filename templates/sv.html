@@ -1,6 +1,7 @@
 {% extends "layout.html" %}
 {% block body %}
-<div class="container">
+<div class="container-fluid">
+
 	<h3>Sample: {{sample_name}}</h3>
 	<h4>SV: {{event_id}}</h4>
 	<br>
@@ -15,7 +16,8 @@
 
   <h4>Structure View</h4>
   <div id="breakend-viz"></div>
-  
+
+
   <h4>Genes near break points</h4>
   <div id="gene-list" class="row"></div>
 
@@ -43,61 +45,77 @@ var isEven = function(n) {
 var num_blocks = blocks.length;
 var margin = {top: 20, right: 40, bottom: 20, left: 40};
 var svg_width = $('#breakend-viz').innerWidth() - margin.left - margin.right,
-    svg_height = 120 - margin.top - margin.bottom;
+    svg_height = 200 - margin.top - margin.bottom;
 var axis_height = svg_height/2;
 var tick_height = axis_height;
 var toggleScaleView = false;
 
 var svg = d3.select("#breakend-viz").append("svg")
-    .attr('style', 'border: solid black 2px;')
+    .style('border', 'solid black 2px')
     .attr("width", svg_width + margin.left + margin.right)
     .attr("height", svg_height + margin.top + margin.bottom);
 var canvas = svg.append("g")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
 // Create view for each block
+var block_color = ['rgba(0,0,0,0.7)', 'rgba(102, 65, 164, 0.7)', 'rgba(0,0,0,0.7)'];
 var block_widths = [];
 var domains = [];
 var xAxisGroups = [];
-for (var i=0; i < num_blocks; i++) {
-  // Create scaled x axis
-  var domain = [blocks[i].start.pos, blocks[i].end.pos];
-  var block_width = Math.round(svg_width/num_blocks); // start with schematic view
-  var xScale = d3.scale.linear().domain(domain).range([1, block_width]);
-  var xAxis = d3.svg.axis()
-                    .orient((isEven(i)) ? 'top' : 'bottom')
-                    .tickValues(domain)
-                    .tickSize(tick_height,0)
-                    .scale(xScale);
-  var xAxisGroup = canvas.append('g')
-                    .call(xAxis)
-                    .classed('axis', true)
-                    .attr('block-number', i)
-                    .attr('transform', 'translate(' + i*block_width + ',' +
-                      axis_height + ')');
-  block_widths[i] = block_width;
-  domains[i] = domain;
-  xAxisGroups[i] = xAxisGroup;
+for (var i = 0; i < num_blocks; i++) {
+  var block = blocks[i];
+  block.domain = [block.start.pos, block.end.pos];
+  block.domain_length = Math.abs(block.start.pos - block.end.pos);
+  block.width = Math.round(svg_width/num_blocks);
+  block.xScale = d3.scale.linear()
+                   .domain(block.domain)
+                   .range([1, block.width]);
+  block.color = block_color[i];
+  blocks[i] = block;
 }
 
+// Create scaled x axis for each block
+var xAxisGroup = canvas.selectAll('g.axis')
+    .data(blocks).enter()
+    .append('g')
+    .classed('axis', true)
+    .attr('block-number', function (block, i) { return i; })
+    .attr('transform', function (block, i) {
+      return 'translate(' + (i * block.width) + ',' + axis_height + ')';
+    });
+xAxisGroup
+    .each(function (block, i) {
+      var xAxis = d3.svg.axis()
+            .orient((isEven(i)) ? 'top' : 'bottom')
+            .tickValues(block.domain)
+            .tickSize(tick_height,0)
+            .scale(block.xScale)
+      d3.select(this).call(xAxis);
+    });
+  
 // Draw block arrows over axes *******************************************
 
-var block_height = 50;
-var block_color = ['rgba(0,0,0,0.5)', 'rgba(0,0,150,0.5)', 'rgba(0,0,0,0.5)'];
+var block_height = Math.round(svg_height/3);
+var block_y = -block_height/2;
 
 // Helper method for drawing block shape - an arrow that can point left or right
-var arrow = function(xLength, yPad, direction) {
-  // TODO should use transform instead of adding pad
-  if (direction) {
-    var lineData = [
-      { "x": 0,   "y": yPad},  { "x": xLength-20,  "y": yPad},
-      { "x": xLength,  "y": 20+yPad}, { "x": xLength-20,  "y": 40+yPad},
-      { "x": 0,  "y": 40+yPad},  { "x": 0, "y": yPad}];
-  } else {
-    var lineData = [
-      { "x": xLength,   "y": yPad},  { "x": 20,  "y": yPad},
-      { "x": 0,  "y": 20+yPad}, { "x": 20,  "y": 40+yPad},
-      { "x": xLength,  "y": 40+yPad},  { "x": xLength, "y": yPad}];
+var arrow = function(xLength, direction) {
+  if (xLength > block_height/2) 
+    if (direction) { 
+      var lineData = [
+        { "x": 0,   "y": 0},  { "x": xLength*0.9,  "y": 0},
+        { "x": xLength,  "y": block_height/2}, { "x": xLength*0.9,  "y": block_height},
+        { "x": 0,  "y": block_height},  { "x": 0, "y": 0}];
+    } else {
+      var lineData = [
+        { "x": xLength,   "y": 0},  { "x": xLength*0.1,  "y": 0},
+        { "x": 0,  "y": block_height/2}, { "x": xLength*0.1,  "y": block_height},
+        { "x": xLength,  "y": block_height},  { "x": xLength, "y": 0}];
+    }
+  else { // draw directionless block
+      var lineData = [
+        { "x": 0,   "y": 0},  { "x": xLength,  "y": 0},
+        { "x": xLength,  "y": block_height}, { "x": 0,  "y": block_height}];
   }
 
   var lineFunction = d3.svg.line()
@@ -110,17 +128,63 @@ var arrow = function(xLength, yPad, direction) {
 
 // Load JSON data on blocks
 var json_blocks_url = '/sample:{{sample_name}}/event:{{event_id}}/sv_blocks.json';
-var block_arrows = [];
 d3.json(json_blocks_url, function(error, data) {
   if (error) throw error;
 
-  for (var i=0; i<num_blocks; i++) {
-    block_arrows[i] = xAxisGroups[i].append('path')
+  xAxisGroup.each(function(block, i) {
+    d3.select(this)
+      .append("path")
       .classed('block', true)
-      .attr('d', function (d) {
-        return arrow(block_widths[i], -tick_height/2, blocks[i].dir);
+      .attr('d', arrow(block.width, block.dir))
+      .attr('transform', 'translate(0, ' + block_y + ')')
+      .style('fill', block.color)
+      .style('stroke', 'rgba(0,0,0,0.5)')
+      .style('stroke-width', '2px')
+      .style('stroke-linejoin', 'round')
+      .style('shape-rendering', 'geometricPrecision');
+  });
+});
+
+// Draw genes over axes **************************************************
+
+var gene_height = svg_height/1.5;
+var gene_y = -gene_height/2;
+var gene_color = ['rgba(229, 0, 67, 0.3)', 'rgba(18, 135, 192, 0.3)', 'rgba(229, 0, 67, 0.3)'];
+var gene_rects = [];
+
+var gene_path = function(block) {
+  var xScale = block.xScale;
+  var start = xScale(block.start.pos), 
+      end = xScale(block.end.pos);
+
+  var lineData = [
+    { "x": start,   "y": 0},  { "x": end,  "y": 0},
+    { "x": end,  "y": gene_height}, { "x": start,  "y": gene_height}];
+    
+  var lineFunction = d3.svg.line()
+    .x(function(d) { return d.x; })
+    .y(function(d) { return d.y; })
+    .interpolate("linear");
+
+  return lineFunction(lineData);
+};
+
+xAxisGroup.each(function (block, i) {
+  if (genes[i]) {
+    d3.select(this).selectAll('path.gene')
+      .data(genes[i]).enter()
+      .append('path')
+      .classed('gene', true)
+      .attr('d', gene_path(block))
+      .attr('transform', 'translate(0, ' + gene_y + ')')
+      .style('stroke', 'none')
+      .style('fill', gene_color[i])
+      .on('mouseover', function() {
+        d3.select(this).classed('gene-selected', true);
       })
-      .style('fill', block_color[i]);
+      .on('mouseout', function() {
+        d3.select(this).classed('gene-selected', false);
+      });
   }
 });
 
@@ -134,8 +198,7 @@ $(window).resize(function() {
 });
 
 // Toggle scaled and schematic views when SVG is clicked 
-var blockLengths = _.map(domains, function(a) { return Math.abs(a[1] - a[0])});
-var sum = d3.sum(blockLengths);
+var sum = d3.sum(_.map(blocks, function (block) { return block.domain_length; }));
 $('#breakend-viz svg').click(function() {
   toggleScaleView = !(toggleScaleView);
   updateBlocks();
@@ -143,126 +206,36 @@ $('#breakend-viz svg').click(function() {
 
 // Helper method for updating block widths
 var updateBlocks = function() {
+  // Update block size
   if (toggleScaleView) {
     var windowScale = d3.scale.linear().domain([1, sum]).rangeRound([1, svg_width]);
-    block_widths = _.map(blockLengths, function(a) {return windowScale(a); });
+    _.each(blocks, function(block) { block.width = windowScale(block.domain_length); });
   } else {
     var fixed_width = Math.round(svg_width/num_blocks);
-    block_widths = _.map(blockLengths, function(a) {return fixed_width; });
+    _.each(blocks, function(block) { block.width = fixed_width; });
   }
-
+  
+  // Resize SVG elements to fit new block size
   var sumPreviousWidths = 0;
-  for (var i=0; i < num_blocks; i++) { 
-    xScale = d3.scale.linear().domain(domains[i]).range([1, block_widths[i]]);
+  xAxisGroup.each(function(block, i) {
+    block.xScale = d3.scale.linear().domain(block.domain).range([1, block.width]).clamp(true);
     xAxis = d3.svg.axis()
-                  .orient((isEven(i)) ? 'top' : 'bottom')
-                  .tickValues(domains[i])
-                  .tickSize(tick_height,0)
-                  .scale(xScale);
-    // d3.selectAll('g.axis') didn't update the axes correctly, hence this array solution
-    xAxisGroups[i]
+              .orient((isEven(i)) ? 'top' : 'bottom')
+              .tickValues(block.domain)
+              .tickSize(tick_height,0)
+              .scale(block.xScale);
+    d3.select(this)
       .call(xAxis)
       .attr('transform', 'translate(' + sumPreviousWidths + ',' + axis_height + ')');
-    sumPreviousWidths += block_widths[i];
-    block_arrows[i].attr('d', function (d) {
-        return arrow(block_widths[i], -tick_height/2, blocks[i].dir);
-      });
-  }
+    sumPreviousWidths += block.width;
+
+    d3.select(this).select('path.block')
+      .attr('d', arrow(block.width, block.dir));
+
+    d3.select(this).selectAll('path.gene')
+      .attr('d', gene_path(block));
+  });
 };
-
-// ***********************************************************************
-
-/*
-  bp_labels = viz.selectAll('g.lined')
-    .append('g')
-    .data(function(d, i){
-      return arrangement; // doesn't work as just data(arrangement)...
-    });
-
-  bp_labels
-    .on('mouseover', function() {
-      d3.select(this).classed("select-label", true);
-      d3.select(this).select('text.start-label').attr('x', function() {
-        return -(this.textLength.baseVal.valueInSpecifiedUnits + label_padding);
-      });
-
-      // need to include unique IDs for breakends in dataset for this object instead
-      this.__data__.forEach(function(d) {
-        var selected_end = 'chr' + d[0] + '-' + d[1];
-        d3.select('.' + selected_end).classed('bolded', true);
-      });
-
-    })
-    .on('mouseout', function() {
-      d3.select(this).classed("select-label", false);
-      d3.select(this).select('text.start-label').attr('x', function() {
-        return -(this.textLength.baseVal.valueInSpecifiedUnits + label_padding);
-      });
-
-      this.__data__.forEach(function(d) {
-        var selected_end = 'chr' + d[0] + '-' + d[1];
-        d3.select('.' + selected_end).classed('bolded', false);
-      });
-    });
-
-  bp_labels
-    .append('line')
-      .attr('x1', 0)
-      .attr('x2', 0)
-      .attr('y1', 0)
-      .attr('y2', 100)
-      .attr('stroke', 'black')
-      .attr('stroke-width', 2);
-
-  var label_padding = 5;
-  var label_height = 20;
-  start_label = bp_labels
-    .append('text')
-    .text(function(d, i) {
-      return d[0][0] + ': ' + d[0][1];
-    });
-
-  start_label
-    .attr('class', function(d) {
-      return 'chr' + d[0][0] + '-' + d[0][1];
-    })
-    .classed('start-label', true)
-    .attr('x', function() {
-      return -(this.textLength.baseVal.valueInSpecifiedUnits + label_padding);
-    })
-    .attr('y', label_height);
-
-  var end_label = bp_labels
-    .append('text')
-    .text(function(d) {
-      return d[1][0] + ': ' + d[1][1];
-    })
-    .attr('class', function(d) {
-      return 'chr' + d[1][0] + '-' + d[1][1];
-    })
-    .attr('x', label_padding)
-    .attr('y', label_height);
-
-  // Show scroll bar?
-  var expandBlock = function(s_d, s_i) {
-      var selected_group = d3.select('#' + s_d.id);
-      var selected_arrow = selected_group.select('path');
-
-      var old_width = s_d.xLength;
-      var new_width = d3.round(((s_d.expanded) ? s_d.w : block_default_w)/block_scale);
-      var width_change = new_width - old_width;
-
-      data[s_i].xLength = new_width;
-      selected_arrow.attr('d', arrow(new_width, 60, s_d.dir));
-
-      for (i = s_i + 1; i < data.length; i++) { 
-        var next = d3.select('#' + data[i].id); 
-        data[i].x_offset = data[i].x_offset + width_change;
-        next.attr('transform',  'translate(' + data[i].x_offset + ', ' + 0 + ')');
-      }
-  };
-});
-
 
 /*
 // Create breakend table *************************************************
@@ -297,14 +270,13 @@ var cells = rows.selectAll("td")
   .text(function(d) {
     return d;
   });
-
+*/
 // Create list of genes around a selected breakend ***********************
 
 /* TODO
 1. use strict ranges (use block regions as cutoffs)
 2. show indicators of function (cancer-related particularly)
 */
-
 var gene_attrs_to_show = ['external_name', 'start', 'end', 'biotype'];
 var gene_headers = ['Name', 'Start', 'End', 'Biotype'];
 var gene_headers_filter = [undefined, undefined, undefined, 'select'];
@@ -312,128 +284,85 @@ var gene_list = d3.select("#gene-list");
 var genes_top, genes_bottom, combined_list, start, end, breakpoint_index;
 var table_width = Math.round(12/num_breakpoints);
 
+// Create breakpoint objects
+var breakpoints = [];
+for (var i =0; i < num_breakpoints; i++) {
+  breakpoint = {}
+  breakpoint.start_block =  blocks[i].end;
+  breakpoint.end_block = blocks[i + 1].start;
+
+  breakpoint.start = breakpoint.start_block.chrom + ':' + breakpoint.start_block.pos;
+  breakpoint.end = breakpoint.end_block.chrom + ':' + breakpoint.end_block.pos;
+  breakpoint.external_name = 'Breakpoint';
+  breakpoint.name =  breakpoint.start + ' | ' + breakpoint.end;
+
+  genes_top = genes[i];
+  genes_bottom = genes[i+1];
+  genes_top = (genes_top) ? genes_top : [];
+  genes_bottom = (genes_bottom) ? genes_bottom : [];
+
+  breakpoint.index = genes_top.length;
+  breakpoint.combined_list = genes_top.concat(breakpoint).concat(genes_bottom);
+
+  breakpoints[i] = breakpoint;
+}
+var w, row, table;
 // Make one gene table per breakpoint
-for (var bp_i =0; bp_i < num_breakpoints; bp_i++) {
-  var gene_div = gene_list.append('div')
-    .classed('col-xs-' + table_width, true)
-    .classed('container', true)
-    .attr('max-height', 230);
+gene_list.selectAll('div.breakpoint')
+  .data(breakpoints).enter()
+  .append('div')
+  .classed('breakpoint', true)
+  .classed('container', true)
+  .classed('col-xs-' + table_width, true)  
+  .attr('max-height', 230);
 
-  // Create title
-  start = blocks[bp_i].end;
-  end = blocks[bp_i + 1].start;
-  var bp_name = start.chrom + ':' + start.pos + ' | ' + end.chrom + ':' + end.pos;
-  gene_div.append('div')
+gene_list.selectAll('div.breakpoint').each(function(breakpoint, i) {
+  // Add header
+  d3.select(this).append('div')
     .classed('panel-heading', true)
-    .text(bp_name);
+    .text(breakpoint.name);
 
-  // Create table
-  gene_div.append('div').attr('id', 'filter-bar-' + bp_i);
-  var gene_table = gene_div.append('div')
+  // Add table
+  d3.select(this)
+    .append('div')
       .classed('container-fluid', true)
     .append('table')
       .classed('table-no-bordered', true)
+      .classed('gene-table', true)
+      .classed('gene-table-' + i, true)
       .attr('data-toggle', 'table')
       .attr('data-height', 230)
       .attr('data-id-field', 'external_name')
-      .attr('id', 'gene-table-' + bp_i);
-
-  // Add column headings
-  gene_table.append('thead').append('tr').selectAll('th')
+    .append('thead').append('tr').selectAll('th')
       .data(gene_attrs_to_show).enter()
-      .append('th')
-      .attr('data-field', function (d) { return d; })
-      .text(function (d, i) { return gene_headers[i]; });
+    .append('th') // Add column headings
+      .attr('data-field', function (gene_attr) { return gene_attr; })
+      .text(function (gene_attr, j) { return gene_headers[j]; });
 
-  // Populate table body with info on genes on either side of breakpoint
-  gene_table.append('tbody');
-
-  genes_top = genes[bp_i];
-  genes_bottom = genes[bp_i+1];
-  breakpoint_index = genes[bp_i].length;
-
-  combined_list = genes_top.concat(genes_bottom);
-
-  var table = $('#gene-table-' + bp_i);
-  table.bootstrapTable({data: combined_list});
+  // Populate table with gene list
+  d3.select(this).select('table').append('tbody');
+  table = $('.gene-table-' + i);
+  table.bootstrapTable({data: breakpoint.combined_list});
   table.bootstrapTable('resetWidth');
 
-  // Mark breakpoint in list
-  d3.select('#gene-table-' + bp_i)
-    .selectAll('tr[data-index="' + breakpoint_index + '"]')
-    .attr('style', 'border-top: solid black;')
-
   // Color text to match breakend visualization
-  d3.select('#gene-table-' + bp_i).selectAll('tbody tr')
-    .attr('style', function(d, i) {
-      var new_style = 'color: ' + block_color[bp_i + (i >= breakpoint_index)] + ';';
-      var old_style = d3.select(this).attr('style');
-      return ((old_style) ? old_style : '')  + new_style
+  d3.select(this).selectAll('table tbody tr')
+    .style('color', function(gene, j) {
+      return blocks[i + (j > breakpoint.index)].color;
     });
-}
 
+  // Style breakpoint in list
+  d3.select(this).select('table tbody tr[data-index="' + breakpoint.index + '"]')
+    .classed('breakpoint', true)
+    .style('background', 'black')
+    .style('color','white');
 
+  //Scroll to breakpoint
+  var offset = $('.gene-table-' + i + ' > tbody > tr[data-index=' + 
+    breakpoint.index + ']').offset().top
+  var offset_header = $('.gene-table-' + i + ' > tbody > tr[data-index=0]').offset().top;
+  $('div.fixed-table-body:has(.gene-table-1)').scrollTop(offset-offset_header);
+});
 
-
-/*
-var gene_list_title = gene_list.select("h4");
-var gene_list_headings = gene_list.select('thead tr');
-// Initialize table
-
-
-// Update table
-
-var get_genes = function() {
-  // Create url
-  var chrom_id = selected_breakend['CHROM'];
-  var position = selected_breakend['POS'];
-  var start = position - gene_range;
-  var end = position + gene_range;
-  var url = '/genes/' + chrom_id + ':' + start + '-' + end;
-
-  // Update table if url has changed
-  if (url != last_url) {
-    $.getJSON(url, function(json){
-      // Create table title
-      var heading_msg = "Genes within " + gene_range + "bp of selected breakend " + selected_breakend['CHROM'] + ':' + selected_breakend['POS'];
-      gene_list_title.text(heading_msg);
-
-      if (json) {
-        // Format biotype column
-        for(var i=0; i<json.length; i++) { // inefficient (need to figure out how bootstrap-table formatter works)
-          json[i]['biotype'] = json[i]['biotype'].replace('_', ' ');
-        }
-
-        // Load json into bootstrap-table via url
-        $('#gene-table').bootstrapTable('load', json);
-        $('#table').bootstrapTable('resetWidth');
-
-        // D3-ify (bind data to html elements)
-        rows = gene_list.select('tbody').selectAll('tr')
-        rows.data(json).enter();
-
-        cols = rows.selectAll('td');
-        cols.data(function(d) {
-          return _.values(_.pick(d, gene_attrs_to_show));
-        }).enter();
-        cols.attr('class', function(d, i) {
-          return gene_attrs_to_show[i];
-        })
-
-        // Add links to name column
-        d3.selectAll('.external_name')
-          .text('')
-          .append('a')
-          .attr('href', function(d, i) {
-            return 'http://www.genecards.org/cgi-bin/carddisp.pl?gene=' + d3.select(this.parentNode.parentNode).datum().id;
-          })
-          .text(function (d) { return d; });
-      } 
-    });
-    last_url = url;
-  }
-};
-get_genes();
-*/
 </script>
 {% endblock %}
