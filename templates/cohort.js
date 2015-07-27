@@ -1,19 +1,68 @@
-
 var event_totals = {{ totals|tojson|safe }};
 var event_types = Object.keys(event_totals);
-
 var num_samples = {{ counts|length }};
+var event_counts = {{ counts|tojson|safe }};
+var table_headers = ['name'].concat(event_types).concat(['total']);
+
+var most_common_events = _.map(_.sortBy(_.pairs(event_totals), 
+  function(i) { return i[1]; }).reverse().slice(0, 5), function(i) {return i[0]; }); // hack
+
+// Add total field to event_counts
+_.each(event_counts, function(d, i) {
+  var total = d3.sum(_.values(_.without(d, 'name')));
+  d.total = total;
+});
+
+// Generate cohort chart *************************************************
+
+var chart_height = 350;
 var sampleHeight = 10;
 var scaledHeight = sampleHeight * num_samples;
 var scaledTicCount = num_samples/4;
 
-var chart = c3.generate({
-  size: {
-    height: scaledHeight
+var btOptions;
+var chart_json = {
+  onrendered: function(e) {
+    // Link to sample page on chart double click
+    $('#cohort-graph .c3-event-rect').dblclick(function (e) {
+      var i = e.currentTarget.__data__.index;
+      var sample_name = chart.categories()[i];
+      window.location.href = '/sample:'.concat(sample_name);
+    });
+
+    // Link legend selections to chart column switches
+    $('#cohort-graph .c3-legend-item').on('click', function(e) {
+      var name = e.currentTarget.__data__;
+      $('#cohort-table div[title="Columns"] li input[data-field="' + name +'"]').click();
+    });
+
+    // Linked highlighting to table rows on bar mouseover
+    d3.selectAll('#cohort-graph .c3-event-rect').on('mouseover', function(d, i) {
+      d3.select('#cohort-table tbody tr[data-index="' + i + '"]').classed('highlight', true);
+      // TODO add scroll to row
+    });
+
+    d3.selectAll('#cohort-graph .c3-event-rect').on('mouseleave', function(d, i) {
+      d3.select('#cohort-table tbody tr[data-index="' + i + '"]').classed('highlight', false);
+      d3.select('#cohort-graph .c3-tooltip-container').style('display', 'none');
+    });
+
+    // Link highlighting to bar on row mouseover
+    d3.selectAll('#cohort-table tbody tr').on('mouseover', function(d, i) {
+      chart.tooltip.show({index: i}); // triggers .c3-event-rect-i mouseover
+    });
+    d3.selectAll('#cohort-table tbody tr').on('mouseleave', function(d, i) {
+      d3.select(this).classed('highlight', false);
+      d3.select('#cohort-graph .c3-tooltip-container').style('display', 'none');
+    });
   },
-  bindto: '#chart',
+  size: {
+    height: chart_height
+  },
+  bindto: '#cohort-graph',
   data: {
-      json: {{ counts|tojson|safe }},
+      hide: _.difference(event_types, most_common_events),
+      json: event_counts,
       keys: {
         x: 'name',
         value: event_types
@@ -22,22 +71,30 @@ var chart = c3.generate({
       groups: [event_types],
       order: null,
       colors: {{ colors|tojson|safe }},
-      onclick: function(d, element) {
-        var sample_name = {{ counts|tojson|safe }}[d.x].name;
-        window.location.href = '/sample:'.concat(sample_name);
+      onselected: function(d, element) {
+        var i = d.index;
+        d3.selectAll('#cohort-table tbody tr[data-index="'+ i + '"]')
+          .classed('selected', true);
+      },
+      onunselected: function(d, element) {
+        var i = d.index;
+        d3.selectAll('#cohort-table tbody tr[data-index="'+ i + '"]')
+          .classed('selected', false);
+      },
+      selection: {
+        enabled: true,
+        draggable: true
       }
   },
   axis: {
     x: {
       label: {
-        text: 'Sample ID',
+        text: 'Samples',
         position: 'outer-middle'
       },
       type: 'category',
       tick: {
-        fit: true,
-        culling: false,
-        multiline: false
+        count: 1
       },
       padding: {
         left: 0,
@@ -48,24 +105,140 @@ var chart = c3.generate({
       show: true,
       label: {
         text: 'Number of Events',
-        position: 'inner-right'
+        position: 'outer-right'
       }
     },
     y2: {
       show: true
-  },
-    rotated: true
+    },
+    rotated: false
   },
   legend: {
     show: true,
     position: 'right'
   }
+};
+
+var chart = c3.generate(chart_json);
+
+
+// Generate cohort table *************************************************
+
+// Add table
+var table = d3.select('#cohort-table')
+  .append('table')
+    .classed('table-no-bordered', true)
+    .attr('data-toggle', 'table')
+    .attr('data-show-columns', true)
+    .attr('data-search', true)
+    .attr('data-height', $(window).innerHeight() - 415)
+    .attr('data-id-field', 'name')
+    .attr('data-sort-name', 'name')
+    .attr('data-sort-order', 'asc')
+    .attr('data-click-to-select', true)
+    .attr('data-maintain-selected', false)
+    .attr('data-show-refresh', true);
+
+table
+  .append('thead').append('tr').selectAll('th')
+    .data(table_headers).enter()
+  .append('th') // Add column headings
+    .text(function (header) { return header; })
+    .attr('data-field', function (header) { return header; })
+    .attr('data-sortable', true);    
+
+// table.select('thead tr th[data-field=state]')
+//   .attr('data-checkbox', true)
+//   .attr('data-sortable', true);
+table.select('thead tr th[data-field=name]')
+  .attr('data-switchable', false)
+  .text('Name');
+table.select('thead tr th[data-field=total]')
+  .text('Total');
+
+table.selectAll('thead tr th:not([data-field=name]):not([data-field=total])').each(function() {
+  var field = d3.select(this).attr('data-field');
+  d3.select(this).attr('data-visible', _.contains(most_common_events, field));
+});
+  
+
+
+table
+  .append('tbody');
+
+// Populate table with cohort data
+$(table).bootstrapTable({data: event_counts});
+
+// Add data binding so D3 methods can be used on the table
+table.selectAll('tbody tr').data(event_counts).enter();
+
+
+
+
+// Event handlers ********************************************************
+
+// Resize table height and columns as needed *****************************
+var old_width, old_height;
+var calculateLayout = (function(){
+  var ww = $(window).innerWidth(),
+      wh = $(window).innerHeight();
+
+  // Adjust width
+  if (ww != old_width) {
+    $(table).bootstrapTable('resetWidth');
+    old_width = ww;
+  }
+  // Adjust height
+  if (wh != old_height) { // TODO maybe compare to a range instead
+    var tp = $('#cohort-table thead').offset().top; // TODO slow
+    var table_height = wh - tp - 10;
+    d3.select('#cohort-table .fixed-table-container').style('height', table_height + 'px');
+    table.attr('data-height', table_height);
+    old_height = wh;
+  }
 });
 
+var lazyLayout = _.debounce(calculateLayout, 200); // Avoid firing resize method multiple times while user is still adjusting window
+$(window).resize(lazyLayout);
+
+// Update chart order on sort ********************************************
+var just_sorted = false;
+$('#cohort-table').on('post-header.bs.table', function() {
+  just_sorted = true;
+});
+$('#cohort-table').on('post-header.bs.table', function(e, name, order) { // TODO really slow
+  if (just_sorted) {
+    var updated_data = $('#cohort-table table').bootstrapTable('getData');
+    chart_json.data.json = updated_data;
+
+    chart = c3.generate(chart_json);
+    just_sorted = false;
+  }
+});
+
+// Open corresponding chart tooltip on row click *************************
+/*$('#cohort-table').on('all.bs.table', function(e, args) {
+  console.log(e);
+  console.log(args);
+});*/
+
+// Link legend selections to chart columns shown *************************
+var updateGraphOnColumnSwtich = function(e, name, shown) {
+  console.log('hello');
+  if (shown) {
+    chart.show(name);
+  } else {
+    chart.hide(name);
+  }
+};
+
+var lazyColumnSwitch = _.debounce(updateGraphOnColumnSwtich, 150); // Avoid firing resize method multiple times while user is still adjusting window
+$('#cohort-table').on('column-switch.bs.table', lazyColumnSwitch);
 
 
 
 
+/*
 // Other experiments with charts down here
 
 // Set up SVG
@@ -239,3 +412,4 @@ d3.json("/event_counts.json", function(error, data) {
       .text(function(d) { return d.event_name; });
 
 });
+*/

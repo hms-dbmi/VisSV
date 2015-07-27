@@ -4043,6 +4043,8 @@
             .style('visibility', function (id) { return $$.isLegendToShow(id) ? 'visible' : 'hidden'; })
             .style('cursor', 'pointer')
             .on('click', function (id) {
+                console.log('clicked');
+                console.log(id);
                 if (config.legend_item_onclick) {
                     config.legend_item_onclick.call($$, id);
                 } else {

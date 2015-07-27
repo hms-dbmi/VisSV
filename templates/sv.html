@@ -69,7 +69,8 @@ for (var i = 0; i < num_blocks; i++) {
   block.width = Math.round(svg_width/num_blocks);
   block.xScale = d3.scale.linear()
                    .domain(block.domain)
-                   .range([1, block.width]);
+                   .range([1, block.width])
+                   .clamp('true');
   block.color = block_color[i];
   blocks[i] = block;
 }
@@ -152,10 +153,10 @@ var gene_y = -gene_height/2;
 var gene_color = ['rgba(229, 0, 67, 0.3)', 'rgba(18, 135, 192, 0.3)', 'rgba(229, 0, 67, 0.3)'];
 var gene_rects = [];
 
-var gene_path = function(block) {
+var gene_path = function(block, gene) {
   var xScale = block.xScale;
-  var start = xScale(block.start.pos), 
-      end = xScale(block.end.pos);
+  var start = xScale(gene.start), 
+      end = xScale(gene.end);
 
   var lineData = [
     { "x": start,   "y": 0},  { "x": end,  "y": 0},
@@ -175,15 +176,23 @@ xAxisGroup.each(function (block, i) {
       .data(genes[i]).enter()
       .append('path')
       .classed('gene', true)
-      .attr('d', gene_path(block))
+      .each(function(gene) {
+        var id = gene.id;
+        d3.select(this).classed(id, true);
+      })
+      .attr('d', function(gene) {
+        return gene_path(block, gene);
+      })
       .attr('transform', 'translate(0, ' + gene_y + ')')
       .style('stroke', 'none')
       .style('fill', gene_color[i])
-      .on('mouseover', function() {
-        d3.select(this).classed('gene-selected', true);
+      .on('mouseover', function(gene) {
+        var id = gene.id;
+        d3.selectAll('.' + id).classed('highlight', true);
       })
-      .on('mouseout', function() {
-        d3.select(this).classed('gene-selected', false);
+      .on('mouseout', function(gene) {
+        var id = gene.id;
+        d3.selectAll('.' + id).classed('highlight', false);
       });
   }
 });
@@ -233,7 +242,9 @@ var updateBlocks = function() {
       .attr('d', arrow(block.width, block.dir));
 
     d3.select(this).selectAll('path.gene')
-      .attr('d', gene_path(block));
+      .attr('d', function(gene){
+        return gene_path(block, gene);
+      });
   });
 };
 
@@ -271,6 +282,7 @@ var cells = rows.selectAll("td")
     return d;
   });
 */
+
 // Create list of genes around a selected breakend ***********************
 
 /* TODO
@@ -306,7 +318,8 @@ for (var i =0; i < num_breakpoints; i++) {
 
   breakpoints[i] = breakpoint;
 }
-var w, row, table;
+
+var w, row, table, breakpoint_row;
 // Make one gene table per breakpoint
 gene_list.selectAll('div.breakpoint')
   .data(breakpoints).enter()
@@ -323,7 +336,7 @@ gene_list.selectAll('div.breakpoint').each(function(breakpoint, i) {
     .text(breakpoint.name);
 
   // Add table
-  d3.select(this)
+  table = d3.select(this)
     .append('div')
       .classed('container-fluid', true)
     .append('table')
@@ -332,36 +345,55 @@ gene_list.selectAll('div.breakpoint').each(function(breakpoint, i) {
       .classed('gene-table-' + i, true)
       .attr('data-toggle', 'table')
       .attr('data-height', 230)
-      .attr('data-id-field', 'external_name')
+      .attr('data-id-field', 'external_name');
+  table
     .append('thead').append('tr').selectAll('th')
       .data(gene_attrs_to_show).enter()
     .append('th') // Add column headings
       .attr('data-field', function (gene_attr) { return gene_attr; })
       .text(function (gene_attr, j) { return gene_headers[j]; });
+  table
+    .append('tbody');
 
   // Populate table with gene list
-  d3.select(this).select('table').append('tbody');
-  table = $('.gene-table-' + i);
-  table.bootstrapTable({data: breakpoint.combined_list});
-  table.bootstrapTable('resetWidth');
+  $(table).bootstrapTable({data: breakpoint.combined_list});
+  $(table).bootstrapTable('resetWidth');
 
-  // Color text to match breakend visualization
-  d3.select(this).selectAll('table tbody tr')
-    .style('color', function(gene, j) {
-      return blocks[i + (j > breakpoint.index)].color;
-    });
+  // Add data binding so D3 methods can be used on the table
+  table.selectAll('tbody tr')
+    .data(breakpoint.combined_list).enter();
 
   // Style breakpoint in list
-  d3.select(this).select('table tbody tr[data-index="' + breakpoint.index + '"]')
+  breakpoint_row = table.select('tbody tr[data-index="' + breakpoint.index + '"]')
     .classed('breakpoint', true)
     .style('background', 'black')
     .style('color','white');
 
+  // Style gene list to link with SV SVG
+  table.selectAll('tbody tr:not(.breakpoint)')
+    .each(function(gene, i) {
+      var id = gene.id;
+      d3.select(this).classed(id, true);
+    })
+    .style('color', function(gene, j) {
+      return blocks[i + (j >= breakpoint.index)].color;
+    })
+    .on('mouseover', function(gene) {
+      var id = gene.id;
+      d3.selectAll('.' + id).classed('highlight', true);
+      // Highlight corresponding gene structure
+    })
+    .on('mouseout', function(gene) {
+      var id = gene.id;
+      d3.selectAll('.' + id).classed('highlight', false);
+    })
+
+  
+
   //Scroll to breakpoint
-  var offset = $('.gene-table-' + i + ' > tbody > tr[data-index=' + 
-    breakpoint.index + ']').offset().top
+  var offset = $(breakpoint_row[0]).offset().top;
   var offset_header = $('.gene-table-' + i + ' > tbody > tr[data-index=0]').offset().top;
-  $('div.fixed-table-body:has(.gene-table-1)').scrollTop(offset-offset_header);
+  $('div.fixed-table-body:has(.gene-table-'+ i +')').scrollTop(offset-offset_header);
 });
 
 </script>

@@ -7,14 +7,11 @@ body {
   overflow: scroll;
 }
  
-.highlight {
-  background-color: #f5f5f5;
-}
-
 svg, line, rect, path {
   shape-rendering: geometricPrecision;
 }
 
+/* Axes */ 
 .axis path,
 .axis line {
     fill: none;
@@ -25,16 +22,28 @@ svg, line, rect, path {
     font-size: 12px;
 }
 
+/* Cohort Chart */
+#cohort-graph g.c3-axis-x g.tick {
+  display: none;
+}
+
+/* Genes */
+.gene-table {
+  height: 100%;
+}
+
+.highlight:not(.breakpoint) {
+  background-color: #f5f5f5 !important;
+}
+
+path.highlight {
+  fill: rgba(255, 226, 133, 0.5) !important;
+}
+
+/* Breakend table */
 #breakend-viz {
   overflow: scroll;
   width: 300;
   height: 100;
 }
 
-.gene-table {
-  height: 100%;
-}
-
-path.gene-selected {
-  fill: rgba(255, 226, 133, 0.5) !important;
-}

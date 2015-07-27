@@ -49,7 +49,17 @@ attrs_to_show = ['CHROM', 'POS', 'REF', 'ALT']
 @app.route('/')
 @app.route('/cohort')
 def cohort():
-    return render_template('cohort.html')
+    example_data = [{"id":0,"name":"Item 0","price":"$0"},
+        {"id":1,"name":"Item 1","price":"$1"},
+        {"id":2,"name":"Item 2","price":"$2"},
+        {"id":3,"name":"Item 3","price":"$3"},
+        {"id":4,"name":"Item 4","price":"$4"},
+        {"id":5,"name":"Item 5","price":"$5"},
+        {"id":6,"name":"Item 6","price":"$6"},
+        {"id":7,"name":"Item 7","price":"$7"},
+        {"id":8,"name":"Item 8","price":"$8"},
+        {"id":9,"name":"Item 9","price":"$9"}];
+    return render_template('cohort.html', example_data=example_data)
 
 @app.route('/cohort.js')
 def js_event_counts():
