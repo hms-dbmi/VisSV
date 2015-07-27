@@ -6,7 +6,7 @@ This module presents visualizations of VCF samples over the web. This
 description is filler for now.
 
 Example:
-  $ python web_viz.py
+  $ python web_viz.py <path to directory of .vcf files>
 
 """
 
@@ -15,12 +15,13 @@ Example:
 # Built-in modules
 import json
 from os.path import join
+import sys
 
 # Third party modules
 from flask import Flask, render_template, url_for
 
 # Local modules
-import vcf_handler
+from vcf_handler import VCFHandler
 import ensembl_requests
 
 # Authorship Information **************************************************
@@ -38,11 +39,12 @@ __status__ = "Prototype"
 # Main Method ************************************************************
 
 app = Flask(__name__)
-input_path = '../data/meerkat-data/SKCM.Meerkat.vcf/'
 
 # horrible hacks
-event_counts = vcf_handler.get_event_counts_per_sample(input_path)
-event_totals = vcf_handler.get_event_totals_for_cohort(input_path)
+vcf_handler = None
+input_path = None
+event_counts = None
+event_totals = None
 current_sample = ''
 attrs_to_show = ['CHROM', 'POS', 'REF', 'ALT']
 
@@ -114,8 +116,19 @@ def json_genes(chrom_id, start, end, species='human'):
     return json.dumps(genes)
 
 if __name__ == '__main__':
+    if len(sys.argv) == 2:
+        input_path = sys.argv[1]
+    else:
+        input_path = '../data/meerkat-data/SKCM.Meerkat.vcf/'
+    
+    vcf_handler = VCFHandler(input_path)
+    
+    event_counts = vcf_handler.get_event_counts_per_sample()
+    event_totals = vcf_handler.get_event_totals_for_cohort()
+
     app.debug = True
     app.run()
+    
 
 
 
