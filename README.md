@@ -2,8 +2,8 @@
 
 Usage: 
 In terminal, type: 
-    python web_viz.py <path to directory of .vcf files>
-    e.g. python web_viz.py /Users/my_name/Desktop/my_vcf_dir
+    python web_viz.py 'path to directory of .vcf files'
+		e.g. python web_viz.py /Users/my_name/Desktop/my_vcf_dir
 
 If sucessful, you should see a message like:
 
