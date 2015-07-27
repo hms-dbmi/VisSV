@@ -1,9 +1,9 @@
 # VisSV
 
-Usage: 
+### Usage 
 In terminal, type: 
-    python web_viz.py 'path to directory of .vcf files'
-		e.g. python web_viz.py /Users/my_name/Desktop/my_vcf_dir
+        python web_viz.py 'path to directory of .vcf files'
+        e.g. python web_viz.py /Users/my_name/Desktop/my_vcf_dir
 
 If sucessful, you should see a message like:
 
@@ -14,16 +14,17 @@ If sucessful, you should see a message like:
 
 and then go to the given url to see the visualization.
 
+### Current views
 
-Goal site map: Cohort --> Sample --> Region --> Single SV
+Cohort ---> Sample ---> Single SV
 
-Current views
 * Cohort: 
- * Stacked bar chart of SV event counts for each sample
- * Each bar links to a corresponding sample page
+    * Stacked bar chart of SV event counts for each sample
+    * Each bar links to a corresponding sample page
 * Sample
- * List of SVs, grouped by unique event ID
- * Each event ID links to an SV profile page
+    * List of SVs, grouped by unique event ID
+    * Each event ID links to an SV profile page
 * SV
-	* Lists breakends 
-	* Lists genes near breakends
+    * Lists breakends 
+    * Lists genes near breakends
+    
