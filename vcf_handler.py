@@ -122,11 +122,17 @@ class VCFHandler(object):
 
 # Event counting methods *************************************************
 
+    def get_event_type_description(self, event_type): #, vcf_type='meerkat'):
+        #if vcf_type is 'meerkat':
+        return vcf_sv_specifc_variables.meerkat_type_descriptions[event_type]
+        #return None
+
     def get_event_type(self, event_id): #, vcf_type='meerkat'):
         #if vcf_type is 'meerkat':
         match = re.match(r"([a-z_]+)([0-9_]+)", event_id, re.I)
+        sv_id = match.groups()[1]
         event_type = match.groups()[0][:-1]
-        return event_type
+        return event_type, sv_id
         #return None
 
     def count_events_in_sample(self):
@@ -322,16 +328,31 @@ class VCFHandler(object):
         if sample_name != CURRENT_SAMPLE:
             self.load_sample(sample_name)
 
-        json_records = {k: self.record_list_to_dict(GROUPED_CURRENT_RECORDS[k]) \
-            for k in GROUPED_CURRENT_RECORDS}
-        return json_records
+        json_records = {}
+        for event_id in GROUPED_CURRENT_RECORDS:
+            event_type, sv_id = self.get_event_type(event_id)
+            description = self.get_event_type_description(event_type)
+            breakends = self.record_list_to_dict(GROUPED_CURRENT_RECORDS[event_id])
+
+            breakend_locations = []
+            for breakend in breakends:
+                breakend_locations.append('{0}:{1}'.format(breakend['CHROM'], breakend['POS']))
+
+            record = {'id': sv_id, 
+                      'type': event_type,
+                      'description': description,
+                      'breakend locations': ', '.join(breakend_locations),
+                      'breakends': breakends}
+            json_records[event_id] = record; # TODO simplify structure
+
+        return list(json_records.values())
 
     def get_breakends(self, event_id, sample_name=CURRENT_SAMPLE):
         '''Returns VCF records for a single event id'''
         if sample_name != CURRENT_SAMPLE:
             self.load_sample(sample_name)
         elif json_records:
-            return json_records[event_id]
+            return json_records[event_id].breakends
 
         breakends = GROUPED_CURRENT_RECORDS[event_id]
         return self.record_list_to_dict(breakends)

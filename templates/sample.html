@@ -1,19 +1,57 @@
 {% extends "layout.html" %}
 {% block body %}
-<div class="container">
-	<h3>Sample: {{sample_filename}}</h3>
+<div class="container-fluid">
+	<h3>Sample: {{sample_name}}</h3>
 	<p> Position selection track (Chromosome, Position) </p>
 	<p> Sample track (SVs) </p>
 	<p> Reference track (Genes)</p>
 	<p> List affected genes affected (for SV selected on click) </p>
 
-	<ul>
-  {% for id in events %}
-  	<li>
-  		<a href="/sample:{{sample_name}}/event:{{id}}">{{id}}</a> <!-- {{id}}: {{events[id]}} -->
-  	</li>
-  {% endfor %}
-  </ul>
+  <div id="sample-table"></div>
 </div>
 
+<script type="text/javascript">
+var events = {{ events|tojson|safe }};
+var table_headers = ['type', 'description', 'breakend locations'];
+
+// Generate sample table *************************************************
+
+// Add table
+var table = d3.select('#sample-table')
+  .append('table')
+    .classed('table-no-bordered', true)
+    .attr('data-toggle', 'table')
+    .attr('data-show-columns', true)
+    .attr('data-search', true)
+    .attr('data-id-field', 'name')
+    .attr('data-sort-name', 'name')
+    .attr('data-sort-order', 'asc')
+    .attr('data-click-to-select', true)
+    .attr('data-maintain-selected', false)
+    .attr('data-filter-control', true)
+    .attr('data-show-refresh', true);
+
+table
+  .append('thead').append('tr').selectAll('th')
+    .data(table_headers).enter()
+  .append('th') // Add column headings
+    .text(function (header) { return header; })
+    .attr('data-field', function (header) { return header; })
+    .attr('data-sortable', true)
+    .attr('data-filter-control', 'input');    
+
+
+table
+  .append('tbody');
+
+// Populate table with cohort data
+$(table).bootstrapTable({data: events});
+
+// Add data binding so D3 methods can be used on the table
+table.selectAll('tbody tr').data(events).enter();
+
+// Format breakend locations
+table.selectAll('tbody tr')
+	
+</script>
 {% endblock %}

@@ -23,6 +23,31 @@ meerkat_colors = {
      'transl_intra': '#33CCFF'  # intra-chromosomal translocation
 };
 
+meerkat_type_descriptions = {
+     'del': 'Deletion with no insertion',
+     'del_ins': 'Deletion with insertion at breakpoint (source unknown)',
+     'del_inssd': 'Deletion with insertion at breakpoint (from same chromosome, same orientation, downstream of deletion)',
+     'del_inssu': 'Deletion with insertion at breakpoint (from same chromosome, same orientation, upstream of deletion)',
+     'del_insod': 'Deletion with insertion at breakpoint (from same chromosome, oppo orientation, downstream of deletion)',
+     'del_insou': 'Deletion with insertion at breakpoint (from same chromosome, oppo orientation, upstream of deletion)',
+     'del_inss': 'Deletion with insertion at breakpoint (from diff chromosome, same orientation)',
+     'del_inso': 'Deletion with insertion at breakpoint (from diff chromosome, oppo orientation)',
+
+     'del_invers': 'Deletion with inversion at breakpoint',
+
+     'inssd': 'Insertion (from same chromosome, same orientation, downstream)',
+     'inssu': 'Insertion (from same chromosome, same orientation, upstream)',
+     'insod': 'Insertion (from same chromosome, oppo orientation, downsteam)',
+     'insou': 'Insertion (from same chromosome, oppo orientation, upstream)',
+     'inss': 'Insertion (from diff chromosome, same orientation)',
+     'inso': 'Insertion (from diff chromosome, oppo orientation)',
+
+     'invers': 'Inversion (with reciprocal discordant read pair cluster support)',
+     'tandem_dup': 'Tandem duplication',
+     'transl_inter': 'Inter-chromosomal translocation',
+     'transl_intra': 'Intra-chromosomal translocation'
+};
+
 # Data taken from UCSC hg19.chrom.sizes
 chromosome_sizes = { 
      'human': {
