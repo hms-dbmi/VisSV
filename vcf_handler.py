@@ -13,7 +13,7 @@ Example:
 # Imports *****************************************************************
 
 # Local modules
-import vcf_sv_specifc_variables
+import vcf_sv_specific_variables
 import ensembl_requests
 
 # Built-in modules
@@ -42,7 +42,7 @@ __maintainer__ = "Lindsey Fernandez"
 __email__ = "lferna15@jhu.edu"
 __status__ = "Prototype"
 
-INPUT_PATH = '/Users/lifernan/Desktop/vcf-sandbox/data/meerkat-data/SKCM.Meerkat.vcf/'
+INPUT_PATH = '/Users/lifernan/Desktop/SKCM.Meerkat.vcf/'
 CURRENT_SAMPLE = None
 
 json_records = []
@@ -124,7 +124,7 @@ class VCFHandler(object):
 
     def get_event_type_description(self, event_type): #, vcf_type='meerkat'):
         #if vcf_type is 'meerkat':
-        return vcf_sv_specifc_variables.meerkat_type_descriptions[event_type]
+        return vcf_sv_specific_variables.meerkat_type_descriptions[event_type]
         #return None
 
     def get_event_type(self, event_id): #, vcf_type='meerkat'):
@@ -141,7 +141,7 @@ class VCFHandler(object):
         unique_events['name'] = CURRENT_SAMPLE
 
         for event_id in GROUPED_CURRENT_RECORDS.keys():
-            event_type = self.get_event_type(event_id)
+            event_type, sv_id = self.get_event_type(event_id)
             unique_events[event_type] += 1
             COHORT_EVENT_TOTALS[event_type] += 1
 
@@ -163,8 +163,8 @@ class VCFHandler(object):
 
     def get_chrom_size(self, chrom_id, species='human', vcf_type='meerkat'):
         '''Returns size of given chromosome'''
-        chrom_id = vcf_sv_specifc_variables.formatChromID(chrom_id, species, vcf_type)
-        chrom_size = vcf_sv_specifc_variables.chromosome_sizes[species][chrom_id] if chrom_id else 0
+        chrom_id = vcf_sv_specific_variables.formatChromID(chrom_id, species, vcf_type)
+        chrom_size = vcf_sv_specific_variables.chromosome_sizes[species][chrom_id] if chrom_id else 0
         return chrom_size
 
     def fetch_breakends(self, chrom_id, start=0, end=None, sample_name=CURRENT_SAMPLE):
@@ -305,7 +305,7 @@ class VCFHandler(object):
     def get_colors(self, vcf_type='meerkat'):
         '''Returns colors for cohort level event counts plot'''
         if vcf_type is 'meerkat':
-            return vcf_sv_specifc_variables.meerkat_colors
+            return vcf_sv_specific_variables.meerkat_colors
 
     def get_event_totals_for_cohort(self):
         '''Returns number of occurances of event type in cohort as ordered dictionary'''
@@ -323,6 +323,7 @@ class VCFHandler(object):
 
     def get_events(self, sample_name=CURRENT_SAMPLE):
         '''Returns VCF records for a single sample, grouped by event id'''
+        # TODO experimenting here
         global json_records
 
         if sample_name != CURRENT_SAMPLE:
@@ -334,18 +335,36 @@ class VCFHandler(object):
             description = self.get_event_type_description(event_type)
             breakends = self.record_list_to_dict(GROUPED_CURRENT_RECORDS[event_id])
 
-            breakend_locations = []
-            for breakend in breakends:
-                breakend_locations.append('{0}:{1}'.format(breakend['CHROM'], breakend['POS']))
+            breakend_locations = ', '.join(['{0}:{1}'.format(b['CHROM'], b['POS']) \
+                for b in breakends])
+            breakend_genome_locations = [self.get_genome_location(b['CHROM'], b['POS']) for b in breakends]
+
 
             record = {'id': sv_id, 
                       'type': event_type,
+                      'vcf_id': event_id,
                       'description': description,
-                      'breakend locations': ', '.join(breakend_locations),
+                      'breakend locations': breakend_locations,
+                      'breakend genome locations': breakend_genome_locations, 
                       'breakends': breakends}
             json_records[event_id] = record; # TODO simplify structure
 
         return list(json_records.values())
+
+    def get_genome_location(self, chrom_id, position, species='human'):
+        # TODO need different name than genome location
+        ucsd_chrom_names = list(vcf_sv_specific_variables.chromosome_sizes[species])
+        ucsd_id = vcf_sv_specific_variables.formatChromID(chrom_id);
+        index = ucsd_chrom_names.index(ucsd_id)
+        print chrom_id, ucsd_id, index, ucsd_chrom_names[0:index]
+        print ucsd_chrom_names
+
+        length_prev_chroms = sum([vcf_sv_specific_variables.chromosome_sizes[species][name] \
+            for name in ucsd_chrom_names[0:index]])
+
+        location = length_prev_chroms + position
+        return location
+
 
     def get_breakends(self, event_id, sample_name=CURRENT_SAMPLE):
         '''Returns VCF records for a single event id'''

@@ -3,16 +3,72 @@
 <div class="container-fluid">
 	<h3>Sample: {{sample_name}}</h3>
 	<p> Position selection track (Chromosome, Position) </p>
-	<p> Sample track (SVs) </p>
-	<p> Reference track (Genes)</p>
-	<p> List affected genes affected (for SV selected on click) </p>
 
+	<div id="sample-graph"></div>
+  <div id="sample-hist"></div>
   <div id="sample-table"></div>
 </div>
 
 <script type="text/javascript">
 var events = {{ events|tojson|safe }};
+var end_positions = []
+_.each(events, function(event, i) {
+  end_positions = end_positions.concat(event['breakend genome locations'])
+})
+var num_ends = end_positions.length;
 var table_headers = ['type', 'description', 'breakend locations'];
+
+
+// Generate cohort chart *************************************************
+
+var chart_height = 350;
+var values = end_positions;
+var position_limit = 3137161264;
+
+var x = d3.scale.linear()
+    .domain([0, position_limit])
+    .range([0, 1]);
+
+var x_categories = x.ticks(20);
+
+var data = d3.layout.histogram()
+    .bins(x_categories)
+    (values);
+
+
+var chart_y = _.map(data, function(d) {return d.length;});
+
+// Make chart
+var chart_json = {
+  size: {
+    height: chart_height
+  },
+  bindto: '#sample-graph',
+  data: {
+      columns: [['breakends in region'].concat(chart_y)],
+      type: 'bar',
+      selection: {
+        enabled: true,
+        draggable: true
+      }
+  },
+  axis: {
+    x: {
+      type: 'category',
+      categories: x_categories,
+      tick: {
+        multiline: false,
+        centered: true
+      }
+    }
+  },
+  legend: {
+    show: false
+  }
+};
+
+var chart = c3.generate(chart_json);
+
 
 // Generate sample table *************************************************
 
@@ -50,8 +106,11 @@ $(table).bootstrapTable({data: events});
 // Add data binding so D3 methods can be used on the table
 table.selectAll('tbody tr').data(events).enter();
 
-// Format breakend locations
-table.selectAll('tbody tr')
-	
+// Event handlers ********************************************************
+table.selectAll('tbody tr').on('click', function(d, i) {
+	window.location.href = '/sample:'.concat({{ sample_name }}).concat(d.vcf_id);
+})
+
+
 </script>
 {% endblock %}

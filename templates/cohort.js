@@ -20,7 +20,6 @@ var sampleHeight = 10;
 var scaledHeight = sampleHeight * num_samples;
 var scaledTicCount = num_samples/4;
 
-var btOptions;
 var chart_json = {
   onrendered: function(e) {
     // Link to sample page on chart double click
