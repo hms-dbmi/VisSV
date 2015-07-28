@@ -109,7 +109,7 @@ table.selectAll('tbody tr').data(events).enter();
 
 // Event handlers ********************************************************
 
-// Update chart order on search ********************************************
+// Update chart order on search ******************************************
 
 $('#sample-table').on('column-search.bs.table', function() { // TODO really slow
   var updated_data = $('#sample-table table').bootstrapTable('getData');
@@ -126,18 +126,24 @@ $('#sample-table').on('column-search.bs.table', function() { // TODO really slow
   chart_json.data.columns = [['breakends in region'].concat(chart_y)];
 
   chart = c3.generate(chart_json);
+  row_listening();
 });
 
-// Link to SV profile on row click *************************
+// Link to SV profile on row click ***************************************
 
 $('#sample-table').on('click-row.bs.table', function(e, d) {
   window.location.href = '/sample:'.concat({{ sample_name|tojson|safe }}).concat('/event:').concat(d.vcf_id);
 });
 
-// Make rows look more like links on hover
-d3.selectAll('#sample-table tbody tr')
-  .on('mouseover', function(d, i) { d3.select(this).classed('link', true); })
-  .on('mouseout', function(d, i) { d3.select(this).classed('link', false); });
+// Make rows look more like links on hover *******************************
+var row_listening = function() {
+  d3.selectAll('#sample-table tbody tr')
+    .on('mouseover', function(d, i) { d3.select(this).classed('link', true); })
+    .on('mouseout', function(d, i) { d3.select(this).classed('link', false); });
+};
+row_listening();
+
+// Bootstrap Table debugging helper **************************************
 
 $('#sample-table').on('all.bs.table', function(e, d) {
   console.log(e, d);
