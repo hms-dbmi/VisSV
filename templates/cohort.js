@@ -45,15 +45,6 @@ var chart_json = {
       d3.select('#cohort-table tbody tr[data-index="' + i + '"]').classed('highlight', false);
       d3.select('#cohort-graph .c3-tooltip-container').style('display', 'none');
     });
-
-    // Link highlighting to bar on row mouseover
-    d3.selectAll('#cohort-table tbody tr').on('mouseover', function(d, i) {
-      chart.tooltip.show({index: i}); // triggers .c3-event-rect-i mouseover
-    });
-    d3.selectAll('#cohort-table tbody tr').on('mouseleave', function(d, i) {
-      d3.select(this).classed('highlight', false);
-      d3.select('#cohort-graph .c3-tooltip-container').style('display', 'none');
-    });
   },
   size: {
     height: chart_height
@@ -136,7 +127,7 @@ var table = d3.select('#cohort-table')
     .attr('data-sort-order', 'asc')
     .attr('data-click-to-select', true)
     .attr('data-maintain-selected', false)
-    .attr('data-show-refresh', true);
+    .attr('data-show-refresh', false);
 
 table
   .append('thead').append('tr').selectAll('th')
@@ -177,6 +168,7 @@ table.selectAll('tbody tr').data(event_counts).enter();
 // Event handlers ********************************************************
 
 // Resize table height and columns as needed *****************************
+
 var old_width, old_height;
 var calculateLayout = (function(){
   var ww = $(window).innerWidth(),
@@ -200,30 +192,30 @@ var calculateLayout = (function(){
 var lazyLayout = _.debounce(calculateLayout, 200); // Avoid firing resize method multiple times while user is still adjusting window
 $(window).resize(lazyLayout);
 
-// Update chart order on sort ********************************************
-var just_sorted = false;
-$('#cohort-table').on('post-header.bs.table', function() {
-  just_sorted = true;
+// Update chart order on search or sort **********************************
+
+var just_filtered = false;
+$('#cohort-table').on('search.bs.table', function() {
+  just_filtered = true;
 });
+$('#cohort-table').on('sort.bs.table', function() {
+  just_filtered = true;
+});
+
 $('#cohort-table').on('post-header.bs.table', function(e, name, order) { // TODO really slow
-  if (just_sorted) {
+  if (just_filtered) {
     var updated_data = $('#cohort-table table').bootstrapTable('getData');
     chart_json.data.json = updated_data;
-
     chart = c3.generate(chart_json);
-    just_sorted = false;
-  }
+
+    just_filtered = false;
+    row_listening();
+  } 
 });
 
-// Open corresponding chart tooltip on row click *************************
-/*$('#cohort-table').on('all.bs.table', function(e, args) {
-  console.log(e);
-  console.log(args);
-});*/
-
 // Link legend selections to chart columns shown *************************
+
 var updateGraphOnColumnSwtich = function(e, name, shown) {
-  console.log('hello');
   if (shown) {
     chart.show(name);
   } else {
@@ -234,8 +226,40 @@ var updateGraphOnColumnSwtich = function(e, name, shown) {
 var lazyColumnSwitch = _.debounce(updateGraphOnColumnSwtich, 150); // Avoid firing resize method multiple times while user is still adjusting window
 $('#cohort-table').on('column-switch.bs.table', lazyColumnSwitch);
 
+// Bootstrap Table event debugging helper ********************************
 
+$('#cohort-table').on('all.bs.table', function(e, d, y) {
+  //console.log(e);
+  console.log(d);
+  //console.log(y);
+});
 
+// Row related event listeners (need to be reinitialized after sort or search)
+
+var row_listening = function() {
+
+  // Link highlighting to bar on row mouseover *****************************
+
+  d3.selectAll('#cohort-table tbody tr').on('mouseover', function(d, i) {
+    d3.select(this).classed('link', true);
+    chart.tooltip.show({index: i}); // triggers .c3-event-rect-i mouseover
+  });
+  
+  d3.selectAll('#cohort-table tbody tr').on('mouseleave', function() {
+    d3.select(this).classed('highlight', false).classed('link', false);
+    d3.select('#cohort-graph .c3-tooltip-container').style('display', 'none');
+  });
+
+  // Go to sample profile on row click *************************************
+
+  $('#cohort-table').on('click-row.bs.table', function(e, d) {
+    var sample_name = d.name;
+    window.location.href = '/sample:'.concat(sample_name);
+  });
+
+};
+
+row_listening();
 
 /*
 // Other experiments with charts down here

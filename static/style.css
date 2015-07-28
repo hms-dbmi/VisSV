@@ -41,6 +41,11 @@ path.highlight {
   fill: rgba(255, 226, 133, 0.5) !important;
 }
 
+tr.link {
+  background-color: rgba(31, 119, 180, 0.1) !important;
+  cursor: pointer;
+}
+
 /* Breakend table */
 #breakend-viz {
   overflow: scroll;

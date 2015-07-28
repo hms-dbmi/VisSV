@@ -335,7 +335,8 @@ class VCFHandler(object):
             description = self.get_event_type_description(event_type)
             breakends = self.record_list_to_dict(GROUPED_CURRENT_RECORDS[event_id])
 
-            breakend_locations = ', '.join(['{0}:{1}'.format(b['CHROM'], b['POS']) \
+            breakend_locations = ', '.join(['{0}:{1}'.format( \
+                vcf_sv_specific_variables.formatChromID(b['CHROM']), b['POS']) \
                 for b in breakends])
             breakend_genome_locations = [self.get_genome_location(b['CHROM'], b['POS']) for b in breakends]
 
@@ -371,7 +372,7 @@ class VCFHandler(object):
         if sample_name != CURRENT_SAMPLE:
             self.load_sample(sample_name)
         elif json_records:
-            return json_records[event_id].breakends
+            return json_records[event_id]['breakends']
 
         breakends = GROUPED_CURRENT_RECORDS[event_id]
         return self.record_list_to_dict(breakends)
