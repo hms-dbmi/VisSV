@@ -9,12 +9,10 @@
 
 <script type="text/javascript">
 var events = {{ events|tojson|safe }};
-var end_positions = [];
-_.each(events, function(event, i) {
-  end_positions = end_positions.concat(event['breakend genome locations'])
-})
+var event_grouped_positions = _.map(events, function(event, i) { return event['breakend genome locations'] });
+var end_positions = _.flatten(event_grouped_positions);
 var num_ends = end_positions.length;
-var table_headers = ['type', 'description', 'breakend locations'];
+var table_headers = ['type', 'description', 'id', 'breakend locations'];
 
 
 // Generate cohort chart *************************************************
@@ -48,6 +46,33 @@ var chart_json = {
       selection: {
         enabled: true,
         draggable: true
+      },
+      onselected: function (d, element) {
+        var ends_in_bin = data[d.index];
+        var corresponding_event_objects = _.map(ends_in_bin, function(end) { 
+            return events[_.findIndex(event_grouped_positions, function(positions) { 
+              return _.contains(positions, end); 
+            })]; 
+          });
+        $('#sample-table table').bootstrapTable(
+          (chart.selected().length == 1) ? 'load' : 'prepend', 
+          corresponding_event_objects);        
+      },
+      onunselected: function (d, element) {
+        var ends_in_bin = data[d.index];
+        var corresponding_event_objects = _.map(ends_in_bin, function(end) { 
+            return events[_.findIndex(event_grouped_positions, function(positions) { 
+              return _.contains(positions, end); 
+            })]; 
+          });
+        if (chart.selected() == 0) {
+          $('#sample-table table').bootstrapTable('load', events);
+        } else {
+          _.each(corresponding_event_objects, function(event_obj) {
+            $('#sample-table table').bootstrapTable('remove', {field: 'id', values: [event_obj.id.toString()]})
+          });
+        }
+        console.log('unselected', d, element, corresponding_event_objects);
       }
   },
   axis: {
@@ -145,9 +170,9 @@ row_listening();
 
 // Bootstrap Table debugging helper **************************************
 
-$('#sample-table').on('all.bs.table', function(e, d) {
+/*$('#sample-table').on('all.bs.table', function(e, d) {
   console.log(e, d);
-});
+});*/
 
 
 

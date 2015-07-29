@@ -19,23 +19,33 @@ var chart_height = 350;
 var sampleHeight = 10;
 var scaledHeight = sampleHeight * num_samples;
 var scaledTicCount = num_samples/4;
+var legend_just_clicked = false;
 
 var chart_json = {
   onrendered: function(e) {
-    // Link to sample page on chart double click
+    // Link to sample page on chart double click *************************
     $('#cohort-graph .c3-event-rect').dblclick(function (e) {
       var i = e.currentTarget.__data__.index;
       var sample_name = chart.categories()[i];
       window.location.href = '/sample:'.concat(sample_name);
     });
 
-    // Link legend selections to chart column switches
-    $('#cohort-graph .c3-legend-item').on('click', function(e) {
-      var name = e.currentTarget.__data__;
-      $('#cohort-table div[title="Columns"] li input[data-field="' + name +'"]').click();
-    });
+    // Link legend selections to chart column switches *******************
 
-    // Linked highlighting to table rows on bar mouseover
+    var legendClick = function(e) {
+      var shown_fields = _.pluck(chart.data.shown(), 'id');
+      var name = e.currentTarget.__data__;
+      console.log(shown_fields);
+
+      $('#cohort-table table').bootstrapTable(_.contains(shown_fields, name) ? 'showColumn' : 'hideColumn', name); 
+      
+    };
+
+    var lazyLegendClick = _.debounce(legendClick, 300); 
+    $('#cohort-graph .c3-legend-item').on('click', lazyLegendClick);
+
+    // Linked highlighting to table rows on bar mouseover ****************
+
     d3.selectAll('#cohort-graph .c3-event-rect').on('mouseover', function(d, i) {
       d3.select('#cohort-table tbody tr[data-index="' + i + '"]').classed('highlight', true);
       // TODO add scroll to row
@@ -203,14 +213,22 @@ $('#cohort-table').on('sort.bs.table', function(e, name, order) {
   sort_name = name;
 });
 
-$('#cohort-table').on('post-header.bs.table', function(e) { // TODO really slow
+var postHeader = function(e) { // TODO really slow
   if (just_searched || just_sorted) {
-
+    console.log('played');
     var updated_data = $('#cohort-table table').bootstrapTable('getData');
     chart_json.data.json = updated_data;
 
-    if (just_sorted && ['name', 'total'].indexOf(sort_name) == -1) {
-      var new_groups = [sort_name].concat(_.without(event_types, sort_name));
+    if (just_sorted) {
+      var new_groups = (['name', 'total'].indexOf(sort_name) == -1) ?
+        [sort_name].concat(_.without(event_types, sort_name)) :
+        event_types;
+
+      console.log(chart.data.shown());
+      console.log(chart_json.data.hide);
+      chart_json.data.hide = _.difference(event_types, 
+        _.map(chart.data.shown(), function(i) { return i.id; }));
+      console.log(chart_json.data.hide);
       chart_json.data.order = function(a, b) {
         return new_groups.indexOf(a.id) > new_groups.indexOf(b.id);
       };
@@ -222,11 +240,16 @@ $('#cohort-table').on('post-header.bs.table', function(e) { // TODO really slow
     just_searched = false;
     row_listening();
   } 
-});
+};
+
+var lazyPostHeader = _.debounce(postHeader, 300); // Avoid firing resize method multiple times while user is still adjusting window
+$('#cohort-table').on('post-header.bs.table', lazyPostHeader);
 
 // Link legend selections to chart columns shown *************************
 
-var updateGraphOnColumnSwtich = function(e, name, shown) {
+var updateGraphOnColumnSwitch = function(e, name, shown) {
+  // TODO fix chaining error here - looks like chart.show or chart.hide trigger legend item clicks
+  // which trigger column switches and which rigger legend item clicks and so on 
   if (shown) {
     chart.show(name);
   } else {
@@ -234,7 +257,7 @@ var updateGraphOnColumnSwtich = function(e, name, shown) {
   }
 };
 
-var lazyColumnSwitch = _.debounce(updateGraphOnColumnSwtich, 150); // Avoid firing resize method multiple times while user is still adjusting window
+var lazyColumnSwitch = _.debounce(updateGraphOnColumnSwitch, 150, false); // Avoid firing resize method multiple times while user is still adjusting window
 $('#cohort-table').on('column-switch.bs.table', lazyColumnSwitch);
 
 // Bootstrap Table event debugging helper ********************************

@@ -119,7 +119,7 @@ if __name__ == '__main__':
     if len(sys.argv) == 2:
         input_path = sys.argv[1]
     else:
-        input_path = '../data/meerkat-data/SKCM.Meerkat.vcf/'
+        input_path = '/Users/lifernan/Desktop/SKCM.Meerkat.vcf/'
     
     vcf_handler = VCFHandler(input_path)
     
