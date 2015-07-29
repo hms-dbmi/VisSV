@@ -23,8 +23,7 @@ svg, line, rect, path {
 }
 
 /* Cohort Chart */
-#cohort-graph g.c3-axis-x g.tick,
-#sample-graph g.c3-axis-x g.tick {
+#cohort-graph g.c3-axis-x g.tick {
   display: none;
 }
 

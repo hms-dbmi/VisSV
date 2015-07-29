@@ -336,8 +336,10 @@ class VCFHandler(object):
             breakends = self.record_list_to_dict(GROUPED_CURRENT_RECORDS[event_id])
 
             breakend_locations = ', '.join(['{0}:{1}'.format( \
-                vcf_sv_specific_variables.formatChromID(b['CHROM']), b['POS']) \
-                for b in breakends])
+                'chr' + b['CHROM'] if vcf_sv_specific_variables.formatChromID(b['CHROM']) == 'chr' + b['CHROM'] \
+                else b['CHROM'], b['POS']) for b in breakends])  # TODO fix hack
+            breakend_locations_array = [{'chrom': b['CHROM'],'pos': b['POS'], 'sv_id': sv_id} \
+                for b in breakends]
             breakend_genome_locations = [self.get_genome_location(b['CHROM'], b['POS']) for b in breakends]
 
 
@@ -346,6 +348,7 @@ class VCFHandler(object):
                       'vcf_id': event_id,
                       'description': description,
                       'breakend locations': breakend_locations,
+                      'breakend locations array': breakend_locations_array,
                       'breakend genome locations': breakend_genome_locations, 
                       'breakends': breakends}
             json_records[event_id] = record; # TODO simplify structure
