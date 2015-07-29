@@ -22,6 +22,7 @@ from flask import Flask, render_template, url_for
 
 # Local modules
 from vcf_handler import VCFHandler
+from vcf_sv_specific_variables import chromosome_sizes
 import ensembl_requests
 
 # Authorship Information **************************************************
@@ -75,7 +76,8 @@ def json_event_counts():
 @app.route('/sample:<sample_name>')
 def sample(sample_name):
     events = vcf_handler.get_events(sample_name)
-    return render_template('sample.html', sample_name=sample_name, events=events)
+    return render_template('sample.html', sample_name=sample_name, events=events, 
+        chromosome_sizes=chromosome_sizes['human'])
 
 @app.route('/sample:<sample_name>/<chrom_id>:<start>-<end>')
 def region():

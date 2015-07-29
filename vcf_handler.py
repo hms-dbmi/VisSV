@@ -335,10 +335,14 @@ class VCFHandler(object):
             description = self.get_event_type_description(event_type)
             breakends = self.record_list_to_dict(GROUPED_CURRENT_RECORDS[event_id])
 
-            breakend_locations = ', '.join(['{0}:{1}'.format( \
-                'chr' + b['CHROM'] if vcf_sv_specific_variables.formatChromID(b['CHROM']) == 'chr' + b['CHROM'] \
-                else b['CHROM'], b['POS']) for b in breakends])  # TODO fix hack
-            breakend_locations_array = [{'chrom': b['CHROM'],'pos': b['POS'], 'sv_id': sv_id} \
+            breakend_locations = ', '.join(['{0}:{1}'.format(
+                'chr' + b['CHROM'] if vcf_sv_specific_variables.formatChromID(b['CHROM']) == 'chr' + b['CHROM'] else b['CHROM'], 
+                b['POS']) for b in breakends])  # TODO fix hack
+            breakend_locations_array = [{
+                'chrom': b['CHROM'], 
+                'ucsc_chrom': vcf_sv_specific_variables.formatChromID(b['CHROM']),
+                'pos': b['POS'], 
+                'sv_id': sv_id} 
                 for b in breakends]
             breakend_genome_locations = [self.get_genome_location(b['CHROM'], b['POS']) for b in breakends]
 

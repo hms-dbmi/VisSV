@@ -233,7 +233,7 @@ var postHeader = function(e) { // TODO really slow
         return new_groups.indexOf(a.id) > new_groups.indexOf(b.id);
       };
     }
- 
+    chart.destroy(); // TODO need to check if necessary, seems to speed up transition nicely
     chart = c3.generate(chart_json);
 
     just_sorted = false;

@@ -9,6 +9,8 @@
 
 <script type="text/javascript">
 var events = {{ events|tojson|safe }};
+var chromosome_sizes = {{ chromosome_sizes|tojson|safe }};
+
 var table_headers = ['type', 'description', 'id', 'breakend locations'];
 
 var end_locations = _.flatten(_.map(events, 
@@ -16,8 +18,16 @@ var end_locations = _.flatten(_.map(events,
 
 var ends_grouped_by_chromosome = _.groupBy(end_locations, 'chrom'); 
 var chromosome_counts = _.map(ends_grouped_by_chromosome, 'length');
+var chromosome_breakrate = _.mapObject(ends_grouped_by_chromosome, function(value, key) {
+  var ucsc_chrom = value[0]['ucsc_chrom'];
+  var chrom_size = chromosome_sizes[ucsc_chrom];
+  return value.length / chrom_size * 1000000;
+});
 var chromosome_names = _.keys(ends_grouped_by_chromosome);
 
+var columns = ['Breakends in region', 'Breakrate'];
+var y_labels =  ['Number of Breakends', 'Breakends per Mb'];
+var hidden_column = 'Breakends in region';
 
 // Generate cohort chart *************************************************
 
@@ -25,12 +35,30 @@ var chart_height = 200;
 
 // Make chart
 var chart_json = {
+  onrendered: function(e) {
+    // Link legend selections to chart column switches *******************
+    $('#sample-graph .c3-legend-item').on('click', function(e) {
+      var shown_fields = _.pluck(chart.data.shown(), 'id');
+      var name = e.currentTarget.__data__;
+      if (shown_fields.length > 1 && _.contains(shown_fields, name)) { // Hide other fields (chart.hide works poorly fyi, so i'm regenerating the chart)
+        chart_json.data.hide = _.without(columns, name);
+        chart_json.axis.y.label.text = y_labels[columns.indexOf(name)];
+        chart.destroy();
+        chart = c3.generate(chart_json);
+      }
+    });
+
+  },
   size: {
     height: chart_height
   },
   bindto: '#sample-graph',
   data: {
-      columns: [['Breakends in region'].concat(_.values(chromosome_counts))],
+      hide: [hidden_column],
+      columns: [
+        ['Breakends in region'].concat(chromosome_counts),
+        ['Breakrate'].concat(_.values(chromosome_breakrate))
+      ],
       type: 'bar',
       selection: {
         enabled: true,
@@ -86,16 +114,17 @@ var chart_json = {
     },
     y: {
       tick: {
-        format: d3.format("d")
+        // format: d3.format("d")
       },
       label: {
-        text: 'Number of Breakends',
+        //text: 'Number of Breakends',
+        text: 'Breakends per Mb',
         position: 'outer-right'
       }
     }
   },
   legend: {
-    show: false
+    show: true
   }
 };
 
@@ -155,6 +184,7 @@ $('#sample-table').on('column-search.bs.table', function() { // TODO really slow
   chart_json.data.columns = [['breakends in region'].concat(_.values(chromosome_counts))];
   chart_json.axis.x.categories = chromosome_names;
 
+  chart.destroy();
   chart = c3.generate(chart_json);
   row_listening();
 });
