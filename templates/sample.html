@@ -4,6 +4,7 @@
 	<h3>Sample: {{sample_name}}</h3>
 
 	<div id="sample-graph"></div>
+  <div id="chromosome-graph"></div>
   <div id="sample-table"></div>
 </div>
 
@@ -25,11 +26,11 @@ var chromosome_breakrate = _.mapObject(ends_grouped_by_chromosome, function(valu
 });
 var chromosome_names = _.keys(ends_grouped_by_chromosome);
 
-var columns = ['Breakends in region', 'Breakrate'];
+var columns = ['Breakends in region', 'Breakrate']; // TODO dry this
 var y_labels =  ['Number of Breakends', 'Breakends per Mb'];
 var hidden_column = 'Breakends in region';
 
-// Generate cohort chart *************************************************
+// Generate sample chart *************************************************
 
 var chart_height = 200;
 
@@ -57,12 +58,60 @@ var chart_json = {
       hide: [hidden_column],
       columns: [
         ['Breakends in region'].concat(chromosome_counts),
-        ['Breakrate'].concat(_.values(chromosome_breakrate))
+        ['Breakrate'].concat(_.values(chromosome_breakrate)) // TODO dry this
       ],
       type: 'bar',
       selection: {
         enabled: true,
         draggable: true
+      },
+      onmouseover: function(d, element) {
+        // Generate chromsome chart for given chromosome
+        console.log(d, element);
+        var chromosome = chromosome_names[d.index].toString();
+        var ends_on_chromosome = ends_grouped_by_chromosome[chromosome];
+
+        var ucsc_chrom = ends_on_chromosome[0]['ucsc_chrom'];
+        var chrom_size = chromosome_sizes[ucsc_chrom];
+
+        var x = d3.scale.linear()
+          .domain([0, chrom_size]);
+
+        // Generate a histogram using twenty uniformly-spaced bins.
+        var binned_positions = d3.layout.histogram()
+          .bins(x.ticks(50))
+          (_.pluck(ends_on_chromosome, 'pos'));
+
+        console.log(binned_positions)
+
+        console.log(chrom_size);
+        chrom_chart_json = {
+          size: {
+            height: chart_height
+          },
+          bindto: '#chromosome-graph',
+          data: {
+            columns: [['Breakends in region'].concat(_.map(binned_positions,'length'))],
+            type: 'bar'
+          },
+          legend: {
+            show: false
+          },
+          axis: {
+            y: {
+              label: {
+                text: 'Breakends in region on ' + chromosome,
+                position: 'outer-right'
+              },
+              tick: {
+                format: d3.format("d")
+              }
+            }
+          }
+
+        };
+        chrom_chart = c3.generate(chrom_chart_json);
+
       },
       onselected: function (d, element) {
         var chromosome = chromosome_names[d.index].toString();
@@ -72,7 +121,7 @@ var chart_json = {
             return _.filter(events, function(event) { 
               return event['id'] == end["sv_id"]; 
             })
-        })));
+        }))); // TODO dry this 
 
         $('#sample-table table').bootstrapTable(
           (chart.selected().length == 1) ? 'load' : 'prepend', 
@@ -129,7 +178,6 @@ var chart_json = {
 };
 
 var chart = c3.generate(chart_json);
-
 
 // Generate sample table *************************************************
 
