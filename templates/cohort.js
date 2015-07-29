@@ -194,21 +194,32 @@ $(window).resize(lazyLayout);
 
 // Update chart order on search or sort **********************************
 
-var just_filtered = false;
+var just_searched = false, just_sorted = false, sort_name;
 $('#cohort-table').on('search.bs.table', function() {
-  just_filtered = true;
+  just_searched = true;
 });
-$('#cohort-table').on('sort.bs.table', function() {
-  just_filtered = true;
+$('#cohort-table').on('sort.bs.table', function(e, name, order) {
+  just_sorted = true;
+  sort_name = name;
 });
 
-$('#cohort-table').on('post-header.bs.table', function(e, name, order) { // TODO really slow
-  if (just_filtered) {
+$('#cohort-table').on('post-header.bs.table', function(e) { // TODO really slow
+  if (just_searched || just_sorted) {
+
     var updated_data = $('#cohort-table table').bootstrapTable('getData');
     chart_json.data.json = updated_data;
+
+    if (just_sorted && ['name', 'total'].indexOf(sort_name) == -1) {
+      var new_groups = [sort_name].concat(_.without(event_types, sort_name));
+      chart_json.data.order = function(a, b) {
+        return new_groups.indexOf(a.id) > new_groups.indexOf(b.id);
+      };
+    }
+ 
     chart = c3.generate(chart_json);
 
-    just_filtered = false;
+    just_sorted = false;
+    just_searched = false;
     row_listening();
   } 
 });
@@ -244,7 +255,7 @@ var row_listening = function() {
     d3.select(this).classed('link', true);
     chart.tooltip.show({index: i}); // triggers .c3-event-rect-i mouseover
   });
-  
+
   d3.selectAll('#cohort-table tbody tr').on('mouseleave', function() {
     d3.select(this).classed('highlight', false).classed('link', false);
     d3.select('#cohort-graph .c3-tooltip-container').style('display', 'none');
