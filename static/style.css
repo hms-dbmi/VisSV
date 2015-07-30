@@ -32,12 +32,25 @@ svg, line, rect, path {
   height: 100%;
 }
 
+.gene.blue {
+
+}
+.gene.blue-green {
+  
+}
+
+
 .highlight:not(.breakpoint) {
   background-color: #f5f5f5 !important;
 }
 
+
 path.highlight {
-  fill: rgba(255, 226, 133, 0.5) !important;
+  fill: rgba(240, 157, 0, 0.5) !important;
+}
+
+#gene-list tr.highlight {
+  background-color: rgba(240, 157, 0, 0.5) !important;
 }
 
 tr.link {
@@ -51,4 +64,3 @@ tr.link {
   width: 300;
   height: 100;
 }
-

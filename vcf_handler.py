@@ -129,10 +129,15 @@ class VCFHandler(object):
 
     def get_event_type(self, event_id): #, vcf_type='meerkat'):
         #if vcf_type is 'meerkat':
-        match = re.match(r"([a-z_]+)([0-9_]+)", event_id, re.I)
-        sv_id = match.groups()[1]
-        event_type = match.groups()[0][:-1]
-        return event_type, sv_id
+        #match = re.match(r"([a-z_]+)([0-9_]+)", event_id, re.I)
+        #event_type = match.groups()[0][:-1]
+        match = re.search("\d", event_id)
+        if match: 
+            index = match.start()
+            event_type = event_id[:index-1]
+            sv_id = event_id[index:]
+            return event_type, sv_id
+        return None
         #return None
 
     def count_events_in_sample(self):
@@ -364,8 +369,6 @@ class VCFHandler(object):
         ucsd_chrom_names = list(vcf_sv_specific_variables.chromosome_sizes[species])
         ucsd_id = vcf_sv_specific_variables.formatChromID(chrom_id);
         index = ucsd_chrom_names.index(ucsd_id)
-        print chrom_id, ucsd_id, index, ucsd_chrom_names[0:index]
-        print ucsd_chrom_names
 
         length_prev_chroms = sum([vcf_sv_specific_variables.chromosome_sizes[species][name] \
             for name in ucsd_chrom_names[0:index]])

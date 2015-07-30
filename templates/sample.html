@@ -334,6 +334,7 @@ $('#sample-table').on('column-search.bs.table', function() {
 // Link to SV profile on row click ***************************************
 
 $('#sample-table').on('click-row.bs.table', function(e, d) {
+  console.log('/sample:'.concat({{ sample_name|tojson|safe }}).concat('/event:').concat(d.vcf_id));
   window.location.href = '/sample:'.concat({{ sample_name|tojson|safe }}).concat('/event:').concat(d.vcf_id);
 });
 

@@ -91,14 +91,17 @@ def sv(sample_name, event_id, pair_id=None):
         event_id = join(event_id, pair_id)
 
     # trying these out
+    event_type, sv_id = vcf_handler.get_event_type(event_id)
+    event_description = vcf_handler.get_event_type_description(event_type)
     breakends = vcf_handler.get_breakends(event_id, sample_name)
     arrangement = vcf_handler.get_arrangement(event_id, sample_name)
     blocks = vcf_handler.get_blocks(event_id, sample_name=sample_name)
     genes = vcf_handler.genes_in_blocks(blocks);
 
     return render_template('sv.html', sample_name=sample_name, \
-        event_id=event_id, event_type=vcf_handler.get_event_type(event_id), \
-        breakends=breakends, arrangement=arrangement, blocks=blocks, \
+        event_id=event_id, event_type=event_type, sv_id=sv_id, \
+        event_description=event_description, breakends=breakends, \
+        arrangement=arrangement, blocks=blocks, \
         attrs_to_show=attrs_to_show, genes=genes)
 
 # trying out

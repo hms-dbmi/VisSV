@@ -2,21 +2,37 @@
 {% block body %}
 <div class="container-fluid">
 
-	<h3>Sample: {{sample_name}}</h3>
-	<h4>SV: {{event_id}}</h4>
-	<br>
-	<table id="breakend-list" class="table table-hover" style='display: none;'>
-		<thead><tr>
-		{% for attr in attrs_to_show %}
-			<th>{{ attr }}</th>
-		{% endfor %}
-		</tr></thead>
-		<tbody></tbody>
-	</table>
+  <h3>Sample: {{sample_name}}</h3>
 
-  <h4>Structure View</h4>
+  <h4>Event: {{event_id}}
+    <span class="inline">
+      <a class="btn" role="button" data-toggle="collapse" href="#collapseEventInfo" aria-expanded="false" aria-controls="collapseEventInfo">
+        <span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span>
+      </a>
+  </span></h4>
+  
+  <div class="collapse" id="collapseEventInfo">
+    <div class="panel panel-default">
+      <div class="panel-body">
+        <h5>{{event_description}}</h5>
+        <!-- Add metadata here -->
+      </div>
+      <table id="breakend-list" class="table table-hover" style='display: show;'>
+        <thead><tr>
+        {% for attr in attrs_to_show %}
+          <th>{{ attr }}</th>
+        {% endfor %}
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+
+  
+
+  <p></p>
   <div id="breakend-viz"></div>
-
 
   <h4>Genes near break points</h4>
   <div id="gene-list" class="row"></div>
@@ -50,15 +66,14 @@ var axis_height = svg_height/2;
 var tick_height = axis_height;
 var toggleScaleView = false;
 
-var svg = d3.select("#breakend-viz").append("svg")
-    .style('border', 'solid black 2px')
+var svg = d3.select("#breakend-viz").append("svg") // .style('border', 'solid black 2px')
     .attr("width", svg_width + margin.left + margin.right)
     .attr("height", svg_height + margin.top + margin.bottom);
 var canvas = svg.append("g")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
 // Create view for each block
-var block_color = ['rgba(0,0,0,0.7)', 'rgba(102, 65, 164, 0.7)', 'rgba(0,0,0,0.7)'];
+var block_color = ['rgba(0, 112, 182, 1)', 'rgba(0, 167, 117, 1)', 'rgba(0, 112, 182, 1)'];
 var block_widths = [];
 var domains = [];
 var xAxisGroups = [];
@@ -95,8 +110,8 @@ xAxisGroup
     });
   
 // Draw block arrows over axes *******************************************
-
-var block_height = Math.round(svg_height/3);
+console.log('make blocks');
+var block_height = Math.round(svg_height/6);
 var block_y = -block_height/2;
 
 // Helper method for drawing block shape - an arrow that can point left or right
@@ -134,7 +149,7 @@ d3.json(json_blocks_url, function(error, data) {
 
   xAxisGroup.each(function(block, i) {
     d3.select(this)
-      .append("path")
+      .insert("path", 'path.gene')
       .classed('block', true)
       .attr('d', arrow(block.width, block.dir))
       .attr('transform', 'translate(0, ' + block_y + ')')
@@ -147,13 +162,15 @@ d3.json(json_blocks_url, function(error, data) {
 });
 
 // Draw genes over axes **************************************************
-
+console.log('genes');
 var gene_height = svg_height/1.5;
 var gene_y = -gene_height/2;
-var gene_color = ['rgba(229, 0, 67, 0.3)', 'rgba(18, 135, 192, 0.3)', 'rgba(229, 0, 67, 0.3)'];
+var gene_color = ['rgba(0, 0, 0, 0.2)', 'rgba(0, 0, 0, 0.2)', 'rgba(0, 0, 0, 0.2)'];
+  // ['rgba(229, 0, 67, 0.3)', 'rgba(18, 135, 192, 0.3)', 'rgba(229, 0, 67, 0.3)'];
 var gene_rects = [];
 
 var gene_path = function(block, gene) {
+  console.log(block,  gene);
   var xScale = block.xScale;
   var start = xScale(gene.start), 
       end = xScale(gene.end);
@@ -172,28 +189,26 @@ var gene_path = function(block, gene) {
 
 xAxisGroup.each(function (block, i) {
   if (genes[i]) {
-    d3.select(this).selectAll('path.gene')
-      .data(genes[i]).enter()
-      .append('path')
-      .classed('gene', true)
-      .each(function(gene) {
-        var id = gene.id;
-        d3.select(this).classed(id, true);
-      })
-      .attr('d', function(gene) {
-        return gene_path(block, gene);
-      })
-      .attr('transform', 'translate(0, ' + gene_y + ')')
-      .style('stroke', 'none')
-      .style('fill', gene_color[i])
-      .on('mouseover', function(gene) {
-        var id = gene.id;
-        d3.selectAll('.' + id).classed('highlight', true);
-      })
-      .on('mouseout', function(gene) {
-        var id = gene.id;
-        d3.selectAll('.' + id).classed('highlight', false);
-      });
+    var current_group = this;
+    _.each(genes[i], function(gene) {
+      var id = gene.id;
+
+      var new_path = d3.select(current_group).append('path');
+      new_path.data(gene).enter();
+      new_path
+        .classed('gene', true)
+        .classed(id, true)
+        .attr('d', gene_path(block, gene))
+        .attr('transform', 'translate(0, ' + gene_y + ')')
+        .style('stroke', 'none')
+        .style('fill', gene_color[i])
+        .on('mouseover', function() {
+          d3.selectAll('.' + id).classed('highlight', true);
+        })
+        .on('mouseout', function() {
+          d3.selectAll('.' + id).classed('highlight', false);
+        });
+    });
   }
 });
 
@@ -241,6 +256,7 @@ var updateBlocks = function() {
     d3.select(this).select('path.block')
       .attr('d', arrow(block.width, block.dir));
 
+    console.log(d3.select(this).selectAll('path.gene'));
     d3.select(this).selectAll('path.gene')
       .attr('d', function(gene){
         return gene_path(block, gene);
@@ -248,8 +264,9 @@ var updateBlocks = function() {
   });
 };
 
-/*
+
 // Create breakend table *************************************************
+console.log('breakend table');
 
 var rows = d3.select("#breakend-list tbody").selectAll('tr')
   .data(breakends)
@@ -281,10 +298,10 @@ var cells = rows.selectAll("td")
   .text(function(d) {
     return d;
   });
-*/
+
 
 // Create list of genes around a selected breakend ***********************
-
+console.log('gene table');
 /* TODO
 1. use strict ranges (use block regions as cutoffs)
 2. show indicators of function (cancer-related particularly)
@@ -344,20 +361,42 @@ gene_list.selectAll('div.breakpoint').each(function(breakpoint, i) {
       .classed('gene-table', true)
       .classed('gene-table-' + i, true)
       .attr('data-toggle', 'table')
-      .attr('data-height', 230)
+      .attr('data-filter-control', true)
       .attr('data-id-field', 'external_name');
   table
     .append('thead').append('tr').selectAll('th')
       .data(gene_attrs_to_show).enter()
     .append('th') // Add column headings
       .attr('data-field', function (gene_attr) { return gene_attr; })
+      .attr('data-field', function (gene_attr) { return gene_attr; })
       .text(function (gene_attr, j) { return gene_headers[j]; });
   table
     .append('tbody');
 
+  table.select('thead tr th[data-field="biotype"]')
+    .attr('data-filter-control', 'input'); 
+
   // Populate table with gene list
   $(table).bootstrapTable({data: breakpoint.combined_list});
   $(table).bootstrapTable('resetWidth');
+
+  // Hack to make filter on single column (biotype) look nicer
+  table.selectAll('thead tr th')
+    .data(gene_attrs_to_show).enter()
+  table.selectAll('thead tr th')
+    .attr('data-field', function (gene_attr) { return gene_attr; })
+    .classed('row', true);
+  table.selectAll('thead tr th:not([data-field="biotype"]) .th-inner').classed('col-xs-12', true);
+  table.selectAll('thead tr th[data-field="biotype"] .th-inner')
+    .classed('col-xs-4', true)
+    .style('padding-right', '0')
+    .style('margin-right', '0');
+  table.selectAll('thead tr th[data-field="biotype"] .fht-cell')
+    .classed('col-xs-8', true)
+    .style('margin-top', '0.2em')
+    .style('padding-left', '0')
+    .style('padding-right', '0');
+
 
   // Add data binding so D3 methods can be used on the table
   table.selectAll('tbody tr')
@@ -375,20 +414,24 @@ gene_list.selectAll('div.breakpoint').each(function(breakpoint, i) {
       var id = gene.id;
       d3.select(this).classed(id, true);
     })
-    .style('color', function(gene, j) {
-      return blocks[i + (j >= breakpoint.index)].color;
+    .style('background-color', function(gene, j) {
+      return blocks[i + (j >= breakpoint.index)].color.replace('1)', '0.2)');
     })
     .on('mouseover', function(gene) {
       var id = gene.id;
+      d3.select(this).classed('highlight', true);
       d3.selectAll('.' + id).classed('highlight', true);
       // Highlight corresponding gene structure
     })
     .on('mouseout', function(gene) {
       var id = gene.id;
+      d3.select(this).classed('highlight', false);
       d3.selectAll('.' + id).classed('highlight', false);
-    })
+    });
 
-  
+
+  // Make sure styles are maintained after table filtering
+
 
   //Scroll to breakpoint
   var offset = $(breakpoint_row[0]).offset().top;
