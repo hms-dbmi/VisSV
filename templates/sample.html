@@ -63,61 +63,18 @@ var chart_json = {
       type: 'bar',
       selection: {
         enabled: true,
-        draggable: true
+        draggable: false // TODO select will chose from both counts and rates weirdly enough
       },
-      onmouseover: function(d, element) {
+      onclick: function(d, element) {
         // Generate chromsome chart for given chromosome
-        console.log(d, element);
         var chromosome = chromosome_names[d.index].toString();
-        var ends_on_chromosome = ends_grouped_by_chromosome[chromosome];
-
-        var ucsc_chrom = ends_on_chromosome[0]['ucsc_chrom'];
-        var chrom_size = chromosome_sizes[ucsc_chrom];
-
-        var x = d3.scale.linear()
-          .domain([0, chrom_size]);
-
-        // Generate a histogram using twenty uniformly-spaced bins.
-        var binned_positions = d3.layout.histogram()
-          .bins(x.ticks(50))
-          (_.pluck(ends_on_chromosome, 'pos'));
-
-        console.log(binned_positions)
-
-        console.log(chrom_size);
-        chrom_chart_json = {
-          size: {
-            height: chart_height
-          },
-          bindto: '#chromosome-graph',
-          data: {
-            columns: [['Breakends in region'].concat(_.map(binned_positions,'length'))],
-            type: 'bar'
-          },
-          legend: {
-            show: false
-          },
-          axis: {
-            y: {
-              label: {
-                text: 'Breakends in region on ' + chromosome,
-                position: 'outer-right'
-              },
-              tick: {
-                format: d3.format("d")
-              }
-            }
-          }
-
-        };
-        chrom_chart = c3.generate(chrom_chart_json);
-
+        make_chromosome_chart(chromosome);
       },
       onselected: function (d, element) {
         var chromosome = chromosome_names[d.index].toString();
-        var ends_on_chromsome = ends_grouped_by_chromosome[chromosome];
+        var ends_on_chromosome = ends_grouped_by_chromosome[chromosome];
         var corresponding_event_objects = _.unique(_.flatten(
-          _.map(ends_on_chromsome, function(end) { 
+          _.map(ends_on_chromosome, function(end) { 
             return _.filter(events, function(event) { 
               return event['id'] == end["sv_id"]; 
             })
@@ -137,13 +94,17 @@ var chart_json = {
               return event['id'] == end["sv_id"]; 
             })
         }))); // TODO dry this 
-
-        if (chart.selected() == 0) {
+        if (chart.selected().length == 0) {
           $('#sample-table table').bootstrapTable('load', events);
         } else {
-          _.each(corresponding_event_objects, function(event_obj) {
-            $('#sample-table table').bootstrapTable('remove', {field: 'id', values: [event_obj.id.toString()]})
-          });
+          var data_in_table = $('#sample-table table').bootstrapTable('getData');
+          var ids_in_table = _.pluck(data_in_table,'id');
+
+          var ids_to_remove = _.unique(_.pluck(corresponding_event_objects, 'id'));
+          var new_data = _.filter(data_in_table, function(event_obj) {
+            return !_.contains(ids_to_remove, event_obj['id']);
+          })
+          $('#sample-table table').bootstrapTable('load', new_data);
         }
         row_listening();
       }
@@ -178,6 +139,111 @@ var chart_json = {
 };
 
 var chart = c3.generate(chart_json);
+
+// Generate chromosome chart *********************************************
+
+var chrom_chart;
+
+var make_chromosome_chart = function(chromosome) {
+  var ends_on_chromosome = ends_grouped_by_chromosome[chromosome];
+
+  var ucsc_chrom = ends_on_chromosome[0]['ucsc_chrom'];
+  var chrom_size = chromosome_sizes[ucsc_chrom];
+
+  var xbins = d3.scale.linear()
+    .domain([0, chrom_size])
+    .ticks(50);
+  var bin_size = xbins[1];
+  var ends_grouped_by_position = _.map(xbins, function(bin) { return []; }); // TODO clean out
+  _.each(ends_on_chromosome, function(end) { 
+    var v = Math.floor(end['pos']/bin_size); 
+    ends_grouped_by_position[v] = ends_grouped_by_position[v].concat(end); 
+  });
+
+  var chrom_chart_json = {
+    size: {
+      height: chart_height
+    },
+    bindto: '#chromosome-graph',
+    data: {
+      columns: [['Breakends in region'].concat(_.map(ends_grouped_by_position,'length'))],
+      type: 'bar',
+      selection: {
+        enabled: true
+      },
+      onselected: function(d, element) {
+        // Filter table by selection
+        var ends_in_bin = ends_grouped_by_position[d.index];
+        var corresponding_event_objects = _.unique(_.flatten(
+          _.map(ends_in_bin, function(end) { 
+            return _.filter(events, function(event) { 
+              return event['id'] == end["sv_id"]; 
+            })
+        }))); // TODO dry this 
+        $('#sample-table table').bootstrapTable(
+          (chrom_chart.selected().length == 1) ? 'load' : 'prepend', 
+          corresponding_event_objects);  
+        row_listening();
+      },
+      onunselected: function (d, element) {
+        var ends_in_bin = ends_grouped_by_position[d.index];
+        var corresponding_event_objects = _.unique(_.flatten(
+          _.map(ends_in_bin, function(end) { 
+            return _.filter(events, function(event) { 
+              return event['id'] == end["sv_id"]; 
+            })
+        }))); // TODO dry this 
+        if (chrom_chart.selected().length == 0) {
+          $('#sample-table table').bootstrapTable('load', events);
+        } else {
+          var data_in_table = $('#sample-table table').bootstrapTable('getData');
+          var ids_in_table = _.pluck(data_in_table,'id');
+
+          var ids_to_remove = _.unique(_.pluck(corresponding_event_objects, 'id'));
+          var new_data = _.filter(data_in_table, function(event_obj) {
+            return !_.contains(ids_to_remove, event_obj['id']);
+          })
+          $('#sample-table table').bootstrapTable('load', new_data);
+        }
+        row_listening();
+      }
+    },
+    legend: {
+      show: false
+    },
+    axis: {
+      x: {
+        type: 'category',
+        categories: _.map(xbins, function(x) { return x/1000000; }),
+        tick: {
+          multiline: false,
+          rotate: 60
+        },
+        label: {
+          text: "Mbp",
+          position: "outer-left"
+        }
+      },
+      y: {
+        label: {
+          text: 'Breakends in region on ' + chromosome,
+          position: 'outer-right'
+        },
+        tick: {
+          format: d3.format("d")
+        }
+      }
+    }
+
+  };
+
+  if (chrom_chart != undefined) {
+    chrom_chart.destroy();
+  }
+  chrom_chart = c3.generate(chrom_chart_json);
+};
+make_chromosome_chart(chromosome_names[0]);
+
 
 // Generate sample table *************************************************
 
