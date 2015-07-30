@@ -67,11 +67,11 @@ var chart_json = {
       },
       onclick: function(d, element) {
         // Generate chromsome chart for given chromosome
-        var chromosome = chromosome_names[d.index].toString();
-        make_chromosome_chart(chromosome);
+        chromosome = chromosome_names[d.index].toString();
+        make_chromosome_chart();
       },
       onselected: function (d, element) {
-        var chromosome = chromosome_names[d.index].toString();
+        chromosome = chromosome_names[d.index].toString();
         var ends_on_chromosome = ends_grouped_by_chromosome[chromosome];
         var corresponding_event_objects = _.unique(_.flatten(
           _.map(ends_on_chromosome, function(end) { 
@@ -80,13 +80,15 @@ var chart_json = {
             })
         }))); // TODO dry this 
 
+        console.log('selected chrom', (chart.selected().length == 1) ? 'load' : 'prepend');
+
         $('#sample-table table').bootstrapTable(
           (chart.selected().length == 1) ? 'load' : 'prepend', 
           corresponding_event_objects);    
         row_listening();  
       },
       onunselected: function (d, element) {
-        var chromosome = chromosome_names[d.index].toString();
+        chromosome = chromosome_names[d.index].toString();
         var ends_on_chromsome = ends_grouped_by_chromosome[chromosome];
         var corresponding_event_objects = _.unique(_.flatten(
           _.map(ends_on_chromsome, function(end) { 
@@ -94,6 +96,8 @@ var chart_json = {
               return event['id'] == end["sv_id"]; 
             })
         }))); // TODO dry this 
+
+        console.log('unselected chrom', (chart.selected().length == 0) ? 'load all' : 'remove');
         if (chart.selected().length == 0) {
           $('#sample-table table').bootstrapTable('load', events);
         } else {
@@ -134,7 +138,8 @@ var chart_json = {
     }
   },
   legend: {
-    show: true
+    show: true,
+    position: 'bottom'
   }
 };
 
@@ -144,7 +149,7 @@ var chart = c3.generate(chart_json);
 
 var chrom_chart;
 
-var make_chromosome_chart = function(chromosome) {
+var make_chromosome_chart = function() {
   var ends_on_chromosome = ends_grouped_by_chromosome[chromosome];
 
   var ucsc_chrom = ends_on_chromosome[0]['ucsc_chrom'];
@@ -180,9 +185,12 @@ var make_chromosome_chart = function(chromosome) {
               return event['id'] == end["sv_id"]; 
             })
         }))); // TODO dry this 
+
+        console.log('selected pos', (chrom_chart.selected().length == 1) ? 'load' : 'prepend', corresponding_event_objects);
         $('#sample-table table').bootstrapTable(
           (chrom_chart.selected().length == 1) ? 'load' : 'prepend', 
           corresponding_event_objects);  
+        redraw_sample_chart_with_new_data(corresponding_event_objects);
         row_listening();
       },
       onunselected: function (d, element) {
@@ -193,8 +201,10 @@ var make_chromosome_chart = function(chromosome) {
               return event['id'] == end["sv_id"]; 
             })
         }))); // TODO dry this 
+        console.log('unselected pos', (chrom_chart.selected().length == 0) ? 'load all' : 'remove');
         if (chrom_chart.selected().length == 0) {
           $('#sample-table table').bootstrapTable('load', events);
+          redraw_sample_chart_with_new_data(events);
         } else {
           var data_in_table = $('#sample-table table').bootstrapTable('getData');
           var ids_in_table = _.pluck(data_in_table,'id');
@@ -204,7 +214,9 @@ var make_chromosome_chart = function(chromosome) {
             return !_.contains(ids_to_remove, event_obj['id']);
           })
           $('#sample-table table').bootstrapTable('load', new_data);
+          redraw_sample_chart_with_new_data(new_data);
         }
+        
         row_listening();
       }
     },
@@ -242,7 +254,8 @@ var make_chromosome_chart = function(chromosome) {
   }
   chrom_chart = c3.generate(chrom_chart_json);
 };
-make_chromosome_chart(chromosome_names[0]);
+var chromosome = chromosome_names[0];
+make_chromosome_chart();
 
 
 // Generate sample table *************************************************
@@ -285,21 +298,36 @@ table.selectAll('tbody tr').data(events).enter();
 
 // Update chart order on search ******************************************
 
-$('#sample-table').on('column-search.bs.table', function() { // TODO really slow
-  var updated_events = $('#sample-table table').bootstrapTable('getData');
-
-  end_locations = _.flatten(_.map(updated_events, 
-      function(event, i) { return event['breakend locations array'] })); 
+var redraw_sample_chart_with_new_data = function(new_events) {
+  end_locations = _.flatten(_.map(new_events, 
+    function(event, i) { return event['breakend locations array'] })); 
 
   ends_grouped_by_chromosome = _.groupBy(end_locations, 'chrom'); 
   chromosome_counts = _.map(ends_grouped_by_chromosome, 'length');
   chromosome_names = _.keys(ends_grouped_by_chromosome);
+  chromosome_breakrate = _.mapObject(ends_grouped_by_chromosome, function(value, key) {
+    var ucsc_chrom = value[0]['ucsc_chrom'];
+    var chrom_size = chromosome_sizes[ucsc_chrom];
+    return value.length / chrom_size * 1000000;
+  });
 
-  chart_json.data.columns = [['breakends in region'].concat(_.values(chromosome_counts))];
+  chart_json.data.columns = [
+        ['Breakends in region'].concat(chromosome_counts),
+        ['Breakrate'].concat(_.values(chromosome_breakrate)) // TODO dry this
+      ];
   chart_json.axis.x.categories = chromosome_names;
 
   chart.destroy();
   chart = c3.generate(chart_json);
+};
+
+$('#sample-table').on('column-search.bs.table', function() {
+  // TODO on search clear, need to restore to full graph
+  console.log('table search', 'getData');
+  var updated_events = $('#sample-table table').bootstrapTable('getData');
+  redraw_sample_chart_with_new_data(updated_events);
+
+  //make_chromosome_chart();
   row_listening();
 });
 
