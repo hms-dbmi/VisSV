@@ -28,9 +28,6 @@
     </div>
   </div>
 
-
-  
-
   <p></p>
   <div id="breakend-viz"></div>
 
@@ -40,15 +37,6 @@
 </div>
 
 <script type="text/javascript">
-var event_type = {{ event_type|tojson|safe }};
-var breakends = {{ breakends|tojson|safe }};
-var columns = {{ attrs_to_show|tojson|safe }};
-var selected_breakend = breakends[0];
-var arrangement = {{ arrangement|tojson|safe }};
-var num_breakpoints = arrangement.length;
-var blocks = {{ blocks|tojson|safe }};
-var genes = {{ genes|tojson|safe }};
-
 // Helper functions ******************************************************
 
 var isEven = function(n) {
@@ -57,65 +45,68 @@ var isEven = function(n) {
 
 // SV Visualization ******************************************************
 
-// Create SVG viewport
-var num_blocks = blocks.length;
+// Create SVG viewport ***************************************************
 var margin = {top: 20, right: 40, bottom: 20, left: 40};
 var svg_width = $('#breakend-viz').innerWidth() - margin.left - margin.right,
     svg_height = 200 - margin.top - margin.bottom;
-var axis_height = svg_height/2;
-var tick_height = axis_height;
-var toggleScaleView = false;
 
 var svg = d3.select("#breakend-viz").append("svg") // .style('border', 'solid black 2px')
     .attr("width", svg_width + margin.left + margin.right)
     .attr("height", svg_height + margin.top + margin.bottom);
+
 var canvas = svg.append("g")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-// Create view for each block
-var block_color = ['rgba(0, 112, 182, 1)', 'rgba(0, 167, 117, 1)', 'rgba(0, 112, 182, 1)'];
-var block_widths = [];
-var domains = [];
-var xAxisGroups = [];
-for (var i = 0; i < num_blocks; i++) {
-  var block = blocks[i];
+// Initialize blocks *****************************************************
+// Note: Blocks will initially be drawn in a schemicatic view.
+
+var blocks = {{ blocks|tojson|safe }};
+var num_blocks = blocks.length;
+var schematic_width = Math.round(svg_width/num_blocks); 
+
+var block_color = ['rgba(0, 112, 182, 1)', 
+  'rgba(0, 167, 117, 1)', 
+  'rgba(0, 112, 182, 1)'];
+
+blocks = _.map(blocks, function(block, i) {
   block.domain = [block.start.pos, block.end.pos];
   block.domain_length = Math.abs(block.start.pos - block.end.pos);
-  block.width = Math.round(svg_width/num_blocks);
+  block.width = schematic_width;
   block.xScale = d3.scale.linear()
                    .domain(block.domain)
                    .range([1, block.width])
                    .clamp('true');
   block.color = block_color[i];
-  blocks[i] = block;
-}
+  return block;
+});
 
-// Create scaled x axis for each block
+// Create scaled x axis for each block ***********************************
+var axis_height = svg_height/2;
+var tick_height = axis_height;
+
 var xAxisGroup = canvas.selectAll('g.axis')
     .data(blocks).enter()
     .append('g')
     .classed('axis', true)
-    .attr('block-number', function (block, i) { return i; })
     .attr('transform', function (block, i) {
       return 'translate(' + (i * block.width) + ',' + axis_height + ')';
-    });
-xAxisGroup
+    })
     .each(function (block, i) {
-      var xAxis = d3.svg.axis()
+        var xAxis = d3.svg.axis()
             .orient((isEven(i)) ? 'top' : 'bottom')
             .tickValues(block.domain)
-            .tickSize(tick_height,0)
+            .tickSize(tick_height, 0)
             .scale(block.xScale)
-      d3.select(this).call(xAxis);
+        d3.select(this).call(xAxis);
     });
   
-// Draw block arrows over axes *******************************************
+// Draw block block_paths over axes *******************************************
 console.log('make blocks');
 var block_height = Math.round(svg_height/6);
-var block_y = -block_height/2;
+var block_y_offset = -block_height/2;
 
-// Helper method for drawing block shape - an arrow that can point left or right
-var arrow = function(xLength, direction) {
+var block_path = function(xLength, direction) {
+  // Helper method for drawing block shape - an block_path that can point left or right
   if (xLength > block_height/2) 
     if (direction) { 
       var lineData = [
@@ -142,35 +133,28 @@ var arrow = function(xLength, direction) {
   return lineFunction(lineData);
 };
 
-// Load JSON data on blocks
+// Load JSON data on blocks 
 var json_blocks_url = '/sample:{{sample_name}}/event:{{event_id}}/sv_blocks.json';
 d3.json(json_blocks_url, function(error, data) {
   if (error) throw error;
 
   xAxisGroup.each(function(block, i) {
     d3.select(this)
-      .insert("path", 'path.gene')
+      .insert("path", '.gene') // Draw block path under paths representing genes
       .classed('block', true)
-      .attr('d', arrow(block.width, block.dir))
-      .attr('transform', 'translate(0, ' + block_y + ')')
+      .attr('d', block_path(block.width, block.dir))
+      .attr('transform', 'translate(0, ' + block_y_offset + ')')
       .style('fill', block.color)
-      .style('stroke', 'rgba(0,0,0,0.5)')
-      .style('stroke-width', '2px')
-      .style('stroke-linejoin', 'round')
-      .style('shape-rendering', 'geometricPrecision');
   });
 });
 
 // Draw genes over axes **************************************************
 console.log('genes');
 var gene_height = svg_height/1.5;
-var gene_y = -gene_height/2;
-var gene_color = ['rgba(0, 0, 0, 0.2)', 'rgba(0, 0, 0, 0.2)', 'rgba(0, 0, 0, 0.2)'];
-  // ['rgba(229, 0, 67, 0.3)', 'rgba(18, 135, 192, 0.3)', 'rgba(229, 0, 67, 0.3)'];
-var gene_rects = [];
+var gene_y_offset = -gene_height/2;
 
 var gene_path = function(block, gene) {
-  console.log(block,  gene);
+  // Helper method for drawing gene path
   var xScale = block.xScale;
   var start = xScale(gene.start), 
       end = xScale(gene.end);
@@ -187,28 +171,22 @@ var gene_path = function(block, gene) {
   return lineFunction(lineData);
 };
 
+var genes = {{ genes|tojson|safe }};
 xAxisGroup.each(function (block, i) {
-  if (genes[i]) {
-    var current_group = this;
-    _.each(genes[i], function(gene) {
-      var id = gene.id;
+  var current_group = this;
 
-      var new_path = d3.select(current_group).append('path');
-      new_path.data(gene).enter();
-      new_path
-        .classed('gene', true)
-        .classed(id, true)
-        .attr('d', gene_path(block, gene))
-        .attr('transform', 'translate(0, ' + gene_y + ')')
-        .style('stroke', 'none')
-        .style('fill', gene_color[i])
-        .on('mouseover', function() {
-          d3.selectAll('.' + id).classed('highlight', true);
-        })
-        .on('mouseout', function() {
-          d3.selectAll('.' + id).classed('highlight', false);
-        });
-    });
+  if (genes[i]) {
+    d3.select(current_group).selectAll('path.gene')
+      .data(genes[i]).enter()
+      .append('path')
+      .classed('gene', true)
+      .attr('transform', 'translate(0, ' + gene_y_offset + ')')
+      .each(function(gene) {
+        var id = gene.id;
+        d3.select(this)
+          .classed(id, true)
+          .attr('d', gene_path(block, gene));
+      });
   }
 });
 
@@ -222,6 +200,7 @@ $(window).resize(function() {
 });
 
 // Toggle scaled and schematic views when SVG is clicked 
+var toggleScaleView = false;
 var sum = d3.sum(_.map(blocks, function (block) { return block.domain_length; }));
 $('#breakend-viz svg').click(function() {
   toggleScaleView = !(toggleScaleView);
@@ -242,31 +221,39 @@ var updateBlocks = function() {
   // Resize SVG elements to fit new block size
   var sumPreviousWidths = 0;
   xAxisGroup.each(function(block, i) {
-    block.xScale = d3.scale.linear().domain(block.domain).range([1, block.width]).clamp(true);
+    block.xScale = d3.scale.linear()
+        .domain(block.domain)
+        .range([1, block.width])
+        .clamp(true);
     xAxis = d3.svg.axis()
-              .orient((isEven(i)) ? 'top' : 'bottom')
-              .tickValues(block.domain)
-              .tickSize(tick_height,0)
-              .scale(block.xScale);
+        .orient((isEven(i)) ? 'top' : 'bottom')
+        .tickValues(block.domain)
+        .tickSize(tick_height,0)
+        .scale(block.xScale);
     d3.select(this)
       .call(xAxis)
       .attr('transform', 'translate(' + sumPreviousWidths + ',' + axis_height + ')');
     sumPreviousWidths += block.width;
 
     d3.select(this).select('path.block')
-      .attr('d', arrow(block.width, block.dir));
+      .attr('d', block_path(block.width, block.dir));
 
-    console.log(d3.select(this).selectAll('path.gene'));
     d3.select(this).selectAll('path.gene')
       .attr('d', function(gene){
         return gene_path(block, gene);
       });
+
+    blocks[i] = block;
   });
 };
 
 
 // Create breakend table *************************************************
 console.log('breakend table');
+
+var breakends = {{ breakends|tojson|safe }};
+var selected_breakend = breakends[0];
+var columns = {{ attrs_to_show|tojson|safe }};
 
 var rows = d3.select("#breakend-list tbody").selectAll('tr')
   .data(breakends)
@@ -301,11 +288,11 @@ var cells = rows.selectAll("td")
 
 
 // Create list of genes around a selected breakend ***********************
-console.log('gene table');
-/* TODO
+// console.log('gene table');
+/*TODO
 1. use strict ranges (use block regions as cutoffs)
-2. show indicators of function (cancer-related particularly)
-*/
+2. show indicators of function (cancer-related particularly)*/
+
 var gene_attrs_to_show = ['external_name', 'start', 'end', 'biotype'];
 var gene_headers = ['Name', 'Start', 'End', 'Biotype'];
 var gene_headers_filter = [undefined, undefined, undefined, 'select'];
@@ -314,6 +301,7 @@ var genes_top, genes_bottom, combined_list, start, end, breakpoint_index;
 var table_width = Math.round(12/num_breakpoints);
 
 // Create breakpoint objects
+var num_breakpoints = breakends.length-1;
 var breakpoints = [];
 for (var i =0; i < num_breakpoints; i++) {
   breakpoint = {}

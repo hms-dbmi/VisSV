@@ -36,6 +36,38 @@ var chart_height = 200;
 
 // Make chart
 var chart_json = {
+  bindto: '#sample-graph',
+  size: {
+    height: chart_height
+  },
+  axis: {
+    x: {
+      type: 'category',
+      categories: chromosome_names,
+      tick: {
+        multiline: true,
+        centered: true
+      },
+      label: {
+        text: 'Chromosome',
+        position: 'outer-left'
+      }
+    },
+    y: {
+      tick: {
+        // format: d3.format("d")
+      },
+      label: {
+        //text: 'Number of Breakends',
+        text: 'Breakends per Mb',
+        position: 'outer-right'
+      }
+    }
+  },
+  legend: {
+    show: true,
+    position: 'bottom'
+  },
   onrendered: function(e) {
     // Link legend selections to chart column switches *******************
     $('#sample-graph .c3-legend-item').on('click', function(e) {
@@ -48,12 +80,7 @@ var chart_json = {
         chart = c3.generate(chart_json);
       }
     });
-
   },
-  size: {
-    height: chart_height
-  },
-  bindto: '#sample-graph',
   data: {
       hide: [hidden_column],
       columns: [
@@ -112,34 +139,6 @@ var chart_json = {
         }
         row_listening();
       }
-  },
-  axis: {
-    x: {
-      type: 'category',
-      categories: chromosome_names,
-      tick: {
-        multiline: true,
-        centered: true
-      },
-      label: {
-        text: 'Chromosome',
-        position: 'outer-left'
-      }
-    },
-    y: {
-      tick: {
-        // format: d3.format("d")
-      },
-      label: {
-        //text: 'Number of Breakends',
-        text: 'Breakends per Mb',
-        position: 'outer-right'
-      }
-    }
-  },
-  legend: {
-    show: true,
-    position: 'bottom'
   }
 };
 
@@ -268,12 +267,7 @@ var table = d3.select('#sample-table')
     .attr('data-show-columns', false)
     .attr('data-search', false)
     .attr('data-id-field', 'name')
-    .attr('data-sort-name', 'name')
-    .attr('data-sort-order', 'asc')
-    .attr('data-click-to-select', true)
-    .attr('data-maintain-selected', false)
-    .attr('data-filter-control', true)
-    .attr('data-show-refresh', false);
+    .attr('data-filter-control', true);
 
 table
   .append('thead').append('tr').selectAll('th')
@@ -351,9 +345,6 @@ row_listening();
 /*$('#sample-table').on('all.bs.table', function(e, d) {
   console.log(e, d);
 });*/
-
-
-
 
 
 </script>

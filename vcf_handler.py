@@ -349,8 +349,6 @@ class VCFHandler(object):
                 'pos': b['POS'], 
                 'sv_id': sv_id} 
                 for b in breakends]
-            breakend_genome_locations = [self.get_genome_location(b['CHROM'], b['POS']) for b in breakends]
-
 
             record = {'id': sv_id, 
                       'type': event_type,
@@ -358,24 +356,10 @@ class VCFHandler(object):
                       'description': description,
                       'breakend locations': breakend_locations,
                       'breakend locations array': breakend_locations_array,
-                      'breakend genome locations': breakend_genome_locations, 
                       'breakends': breakends}
             json_records[event_id] = record; # TODO simplify structure
 
         return list(json_records.values())
-
-    def get_genome_location(self, chrom_id, position, species='human'):
-        # TODO need different name than genome location
-        ucsd_chrom_names = list(vcf_sv_specific_variables.chromosome_sizes[species])
-        ucsd_id = vcf_sv_specific_variables.formatChromID(chrom_id);
-        index = ucsd_chrom_names.index(ucsd_id)
-
-        length_prev_chroms = sum([vcf_sv_specific_variables.chromosome_sizes[species][name] \
-            for name in ucsd_chrom_names[0:index]])
-
-        location = length_prev_chroms + position
-        return location
-
 
     def get_breakends(self, event_id, sample_name=CURRENT_SAMPLE):
         '''Returns VCF records for a single event id'''
