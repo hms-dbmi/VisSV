@@ -51,8 +51,9 @@ path.highlight {
   background-color: rgba(240, 157, 0, 0.5) !important;
 }
 
-tr.link {
-  background-color: rgba(31, 119, 180, 0.1) !important;
+#cohort-table tbody tr:hover,
+#sample-table tbody tr:hover {
+  background-color: rgba(31, 119, 180, 0.1);
   cursor: pointer;
 }
 
