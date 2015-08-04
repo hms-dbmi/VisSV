@@ -150,7 +150,7 @@ d3.json(json_blocks_url, function(error, data) {
 
 // Draw genes over axes **************************************************
 console.log('genes');
-var gene_height = svg_height/1.5;
+var gene_height = svg_height/4;
 var gene_y_offset = -gene_height/2;
 
 var gene_path = function(block, gene) {
@@ -180,7 +180,10 @@ xAxisGroup.each(function (block, i) {
       .data(genes[i]).enter()
       .append('path')
       .classed('gene', true)
-      .attr('transform', 'translate(0, ' + gene_y_offset + ')')
+      .attr('transform', function(gene) {
+        var strand_offset = -gene.strand*gene_height;
+        return 'translate(0, ' + (gene_y_offset + strand_offset) + ')'
+      })
       .each(function(gene) {
         var id = gene.id;
         d3.select(this)
@@ -288,7 +291,7 @@ var cells = rows.selectAll("td")
 
 
 // Create list of genes around a selected breakend ***********************
-// console.log('gene table');
+console.log('gene table');
 /*TODO
 1. use strict ranges (use block regions as cutoffs)
 2. show indicators of function (cancer-related particularly)*/
@@ -298,10 +301,17 @@ var gene_headers = ['Name', 'Start', 'End', 'Biotype'];
 var gene_headers_filter = [undefined, undefined, undefined, 'select'];
 var gene_list = d3.select("#gene-list");
 var genes_top, genes_bottom, combined_list, start, end, breakpoint_index;
+var num_breakpoints = blocks.length-1;
 var table_width = Math.round(12/num_breakpoints);
 
 // Create breakpoint objects
-var num_breakpoints = breakends.length-1;
+
+for (var i =0; i < genes.length; i++) {
+  if (!blocks[i].dir) {
+    genes[i].reverse();
+  }
+}
+
 var breakpoints = [];
 for (var i =0; i < num_breakpoints; i++) {
   breakpoint = {}

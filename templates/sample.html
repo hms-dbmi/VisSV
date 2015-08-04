@@ -12,19 +12,24 @@
 var events = {{ events|tojson|safe }};
 var chromosome_sizes = {{ chromosome_sizes|tojson|safe }};
 
-var end_locations = _.flatten(_.pluck(events, 'breakend locations array')); 
-var ends_grouped_by_chromosome = _.groupBy(end_locations, 'chrom'); 
-var chrom_names = _.keys(ends_grouped_by_chromosome);
-var end_counts = _.map(ends_grouped_by_chromosome, 'length');
-
-var breakrate = _.values(_.mapObject(ends_grouped_by_chromosome, function(value, key) {
-  var ucsc_chrom_name = value[0]['ucsc_chrom'];
-  var chrom_size = chromosome_sizes[ucsc_chrom_name];
-  return value.length / chrom_size * 1000000;
-}));
-
+var ends_grouped_by_chromosome, chromosome_names, end_counts, breakrate;
 
 // Helper methods ********************************************************
+
+var calculate_event_stats = function(event_objs) {
+  var end_locations = _.flatten(_.pluck(event_objs, 'breakend locations array')); 
+  ends_grouped_by_chromosome = _.groupBy(end_locations, 'chrom'); 
+
+  chromosome_names = _.keys(ends_grouped_by_chromosome);
+  end_counts = _.map(ends_grouped_by_chromosome, 'length');
+  
+  breakrate = _.values(_.mapObject(ends_grouped_by_chromosome, function(value, key) {
+    var ucsc_chrom = value[0]['ucsc_chrom'];
+    var chrom_size = chromosome_sizes[ucsc_chrom];
+    return value.length / chrom_size * 1000000;
+  }));
+};
+
 var event_objects_on_chromosome = function(chromosome) {
   var ends_on_chromosome = ends_grouped_by_chromosome[chromosome];
   var corresponding_event_objects = _.unique(_.flatten(
@@ -62,14 +67,11 @@ var sample_rendered = function(e) {
   });
 };
 
-var sample_click = function(d, element) {
-  // Generate chromosome chart for given chromosome
-  current_chromosome = chromosome_names[d.index].toString();
-  make_chromosome_chart();
-};
-
+var last_chromosome;
 var sample_selected = function (d, element) {
+  last_chromosome = current_chromosome;
   current_chromosome = chromosome_names[d.index].toString();
+  console.log('selected', last_chromosome, current_chromosome);
   var events_on_chromosome = event_objects_on_chromosome(current_chromosome);
 
   $('#sample-table table').bootstrapTable(
@@ -79,6 +81,7 @@ var sample_selected = function (d, element) {
 };
 
 var sample_unselected = function (d, element) {
+  last_chromosome = current_chromosome;
   current_chromosome = chromosome_names[d.index].toString();
   var events_on_chromosome = event_objects_on_chromosome(current_chromosome);
 
@@ -96,7 +99,17 @@ var sample_unselected = function (d, element) {
   }
 };
 
+var sample_click = function(d, element) {
+  // Generate chromosome chart for given chromosome
+  // Note: Selected and unselected are called before this method.
+  if (last_chromosome != current_chromosome) {
+    make_chromosome_chart();
+  }
+};
+
 // Make sample chart ************************************************************
+
+calculate_event_stats(events);
 
 var sample_chart_json = {
   bindto: '#sample-chart',
@@ -106,7 +119,7 @@ var sample_chart_json = {
   axis: {
     x: {
       type: 'category',
-      categories: chrom_names,
+      categories: chromosome_names,
       label: {
         text: 'Chromosome',
         position: 'outer-left'
@@ -186,7 +199,6 @@ var make_chromosome_chart = function() {
   };
 
   var chrom_unselected = function (d, element) {
-
     if (chrom_chart.selected().length == 0) {
       $('#sample-table table').bootstrapTable('load', events);
       redraw_sample_chart_with_new_data(events);
@@ -295,23 +307,12 @@ table.selectAll('tbody tr').data(events).enter();
 // Update chart order on search ******************************************
 
 var redraw_sample_chart_with_new_data = function(new_events) {
-  var end_locations = _.flatten(_.pluck(new_events, 'breakend locations array')); 
-
-  var ends_grouped_by_chromosome = _.groupBy(end_locations, 'chrom'); 
-  var chrom_names = _.keys(ends_grouped_by_chromosome);
-  var end_counts = _.map(ends_grouped_by_chromosome, 'length');
-  
-  var breakrate = _.values(_.mapObject(ends_grouped_by_chromosome, function(value, key) {
-    var ucsc_chrom = value[0]['ucsc_chrom'];
-    var chrom_size = chromosome_sizes[ucsc_chrom];
-    return value.length / chrom_size * 1000000;
-  }));
-
-  sample_chart_json.axis.x.categories = chrom_names;
+  calculate_event_stats(new_events);
+  sample_chart_json.axis.x.categories = chromosome_names;
   sample_chart_json.data.columns = [
-        [sample_columns[0]].concat(end_counts),
-        [sample_columns[1]].concat(breakrate) // TODO dry this
-      ];
+    [sample_columns[0]].concat(end_counts),
+    [sample_columns[1]].concat(breakrate) // TODO dry this
+  ];
   
   chart.destroy();
   chart = c3.generate(sample_chart_json);
