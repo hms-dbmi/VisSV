@@ -43,6 +43,11 @@ var isEven = function(n) {
   return n == parseFloat(n)? !(n%2) : void 0;
 };
 
+var cFormat = d3.format(',');
+var posFormat = function(chrom, pos) {
+  return chrom + ':' + cFormat(pos);
+}
+
 // SV Visualization ******************************************************
 
 // Create SVG viewport ***************************************************
@@ -97,6 +102,9 @@ var xAxisGroup = canvas.selectAll('g.axis')
             .tickValues(block.domain)
             .tickSize(tick_height, 0)
             .scale(block.xScale)
+            .tickFormat(function (x) {
+              return posFormat(block.start.chrom, x);
+            });
         d3.select(this).call(xAxis);
     });
   
@@ -149,6 +157,7 @@ d3.json(json_blocks_url, function(error, data) {
 });
 
 // Draw genes over axes **************************************************
+
 console.log('genes');
 var gene_height = svg_height/4;
 var gene_y_offset = -gene_height/2;
@@ -172,6 +181,7 @@ var gene_path = function(block, gene) {
 };
 
 var genes = {{ genes|tojson|safe }};
+
 xAxisGroup.each(function (block, i) {
   var current_group = this;
 
@@ -293,10 +303,10 @@ var cells = rows.selectAll("td")
 // Create list of genes around a selected breakend ***********************
 console.log('gene table');
 /*TODO
-1. use strict ranges (use block regions as cutoffs)
+1. use strict ranges (use block regions as cutoffs) X
 2. show indicators of function (cancer-related particularly)*/
 
-var gene_attrs_to_show = ['external_name', 'start', 'end', 'biotype'];
+var gene_attrs_to_show = ['external_name', 'start_formatted', 'end_formatted', 'biotype'];
 var gene_headers = ['Name', 'Start', 'End', 'Biotype'];
 var gene_headers_filter = [undefined, undefined, undefined, 'select'];
 var gene_list = d3.select("#gene-list");
@@ -310,6 +320,12 @@ for (var i =0; i < genes.length; i++) {
   if (!blocks[i].dir) {
     genes[i].reverse();
   }
+
+  // TODO bootstrap table data-formatter didn't work, so this is the temporay solution
+  _.each(genes[i], function(gene) {
+    gene.start_formatted = cFormat(gene.start);
+    gene.end_formatted = cFormat(gene.end);
+  })
 }
 
 var breakpoints = [];
@@ -318,8 +334,8 @@ for (var i =0; i < num_breakpoints; i++) {
   breakpoint.start_block =  blocks[i].end;
   breakpoint.end_block = blocks[i + 1].start;
 
-  breakpoint.start = breakpoint.start_block.chrom + ':' + breakpoint.start_block.pos;
-  breakpoint.end = breakpoint.end_block.chrom + ':' + breakpoint.end_block.pos;
+  breakpoint.start = posFormat(breakpoint.start_block.chrom, breakpoint.start_block.pos);
+  breakpoint.end = posFormat(breakpoint.end_block.chrom, breakpoint.end_block.pos);
   breakpoint.external_name = 'Breakpoint';
   breakpoint.name =  breakpoint.start + ' | ' + breakpoint.end;
 
@@ -367,12 +383,13 @@ gene_list.selectAll('div.breakpoint').each(function(breakpoint, i) {
     .append('th') // Add column headings
       .attr('data-field', function (gene_attr) { return gene_attr; })
       .attr('data-field', function (gene_attr) { return gene_attr; })
-      .text(function (gene_attr, j) { return gene_headers[j]; });
-  table
-    .append('tbody');
-
+      .text(function (gene_attr, j) { return gene_headers[j]; })
+  
   table.select('thead tr th[data-field="biotype"]')
     .attr('data-filter-control', 'input'); 
+
+  table
+    .append('tbody');
 
   // Populate table with gene list
   $(table).bootstrapTable({data: breakpoint.combined_list});
@@ -394,7 +411,6 @@ gene_list.selectAll('div.breakpoint').each(function(breakpoint, i) {
     .style('margin-top', '0.2em')
     .style('padding-left', '0')
     .style('padding-right', '0');
-
 
   // Add data binding so D3 methods can be used on the table
   table.selectAll('tbody tr')

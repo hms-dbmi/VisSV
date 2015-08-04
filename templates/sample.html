@@ -158,16 +158,17 @@ var chart = c3.generate(sample_chart_json);
 // Generate chromosome chart *********************************************
 
 var current_chromosome = chromosome_names[0];
-var chrom_chart;
+var chrom_chart, xbins;
 
 var make_chromosome_chart = function() {
   var ends_on_chromosome = ends_grouped_by_chromosome[current_chromosome];
   var ucsc_chrom = ends_on_chromosome[0]['ucsc_chrom'];
   var chrom_size = chromosome_sizes[ucsc_chrom];
 
-  var xbins = d3.scale.linear()
+  var num_ticks = 50;
+  xbins = d3.scale.linear()
     .domain([0, chrom_size])
-    .ticks(50);
+    .ticks(num_ticks);
   var bin_size = xbins[1];
 
   var ends_grouped_by_position = _.map(xbins, function(bin) { return []; }); // TODO clean out
@@ -219,6 +220,8 @@ var make_chromosome_chart = function() {
 
   // Create chromosome chart *********************************************
 
+  //var sFormat = d3.format('s'); // sFormat(100000) returns 100k, sFormat(1000000) returns 1M
+
   var chrom_chart_json = {
     bindto: '#chromosome-chart',
     size: {
@@ -230,13 +233,16 @@ var make_chromosome_chart = function() {
     axis: {
       x: {
         type: 'category',
-        categories: _.map(xbins, function(x) { return x/1000000; }),
+        categories: _.map(xbins, function(x) {return x/1000000; }),
         tick: {
           multiline: false,
-          rotate: 60
+          rotate: 60,
+          culling: {
+            max: num_ticks/2
+          }
         },
         label: {
-          text: "Mb",
+          text: "Mbp",
           position: "outer-left"
         }
       },
