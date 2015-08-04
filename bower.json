@@ -18,6 +18,10 @@
     "bootstrap": "~3.3.5",
     "underscore": "~1.8.3",
     "c3": "~0.4.10",
-    "bootstrap-table": "~1.8.1"
+    "bootstrap-table": "~1.8.1",
+    "d3-tip": "~0.6.7"
+  },
+  "resolutions": {
+    "d3": "3.5.5"
   }
 }

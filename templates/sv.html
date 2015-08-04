@@ -123,7 +123,6 @@ var xAxisGroup = canvas.selectAll('g.axis')
           })
     });
 
-  
 // Draw block block_paths over axes *******************************************
 console.log('make blocks');
 var block_height = Math.round(svg_height/6);
@@ -196,8 +195,31 @@ var gene_path = function(block, gene) {
   return lineFunction(lineData);
 };
 
-var genes = {{ genes|tojson|safe }};
+// Create gene tooltip
+var tip = d3.tip()
+  .attr('class', 'd3-tip c3-tooltip')
+  .style('max-width', '100px')
+  .offset([550, 0])
+  .html(function(d) { 
+    // Formatting this content to match css selectors for c3-tooltip 
+    var tip_table = d3.select(document.createElement('table'));
+    var header = tip_table.append('thead').append('tr').append('th').text(d.external_name);
 
+    var tbody = tip_table.append('tbody');
+    _.mapObject(_.omit(d, 'external_name'), function(value, key) {
+      var row = tbody.append('tr');
+      row.append('td').text(key);
+      row.append('td').text(value);
+    });
+
+    return $(tip_table[0]).prop('outerHTML');
+  });
+  
+svg.call(tip);
+var gene_clicked = false;
+
+// Add genes representations to each fragment's axis group
+var genes = {{ genes|tojson|safe }};
 xAxisGroup.each(function (block, i) {
   var current_group = this;
 
@@ -209,6 +231,22 @@ xAxisGroup.each(function (block, i) {
       .attr('transform', function(gene) {
         var strand_offset = -gene.strand*gene_height;
         return 'translate(0, ' + (gene_y_offset + strand_offset) + ')'
+      })
+      .on('click', function(gene) { 
+        // temporary solution that keeps tooltip on page to allow selection of tip content
+        gene_clicked = !gene_clicked;
+        return gene_clicked ? tip.show(gene) : tip.hide(gene);
+      })
+      .on('mouseover', function(gene) {
+        // Highlight corresponding gene structure
+        var id = gene.id;
+        d3.select(this).classed('highlight', true);
+        d3.selectAll('.' + id).classed('highlight', true);
+      })
+      .on('mouseout', function(gene) {
+        var id = gene.id;
+        d3.select(this).classed('highlight', false);
+        d3.selectAll('.' + id).classed('highlight', false);
       })
       .each(function(gene) {
         var id = gene.id;
@@ -448,15 +486,18 @@ gene_list.selectAll('div.breakpoint').each(function(breakpoint, i) {
       return blocks[i + (j >= breakpoint.index)].color.replace('1)', '0.2)');
     })
     .on('mouseover', function(gene) {
+      // Highlight corresponding gene structure
       var id = gene.id;
       d3.select(this).classed('highlight', true);
       d3.selectAll('.' + id).classed('highlight', true);
-      // Highlight corresponding gene structure
+      //tip.show(gene);
+      
     })
     .on('mouseout', function(gene) {
       var id = gene.id;
       d3.select(this).classed('highlight', false);
       d3.selectAll('.' + id).classed('highlight', false);
+      //tip.hide(gene);
     });
 
 
