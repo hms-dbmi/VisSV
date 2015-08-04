@@ -7,7 +7,7 @@ body {
   overflow: scroll;
 }
  
-svg, line, rect, path {
+svg, line, rect, path, text {
   shape-rendering: geometricPrecision;
 }
 

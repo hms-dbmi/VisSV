@@ -31,7 +31,7 @@
   <p></p>
   <div id="breakend-viz"></div>
 
-  <h4>Genes near break points</h4>
+  <h4>Genes near breakpoints</h4>
   <div id="gene-list" class="row"></div>
 
 </div>
@@ -106,7 +106,23 @@ var xAxisGroup = canvas.selectAll('g.axis')
               return posFormat(block.start.chrom, x);
             });
         d3.select(this).call(xAxis);
+
+        d3.select(this).selectAll('text')
+/*          .style('fill', block.color)
+          .style('stroke', 'black')
+          .style('stroke-width', '0.4px')*/
+          .each(function() {
+            var text_bbox = this.getBBox();
+
+            d3.select(this.parentNode).append('rect')
+              .attr('width', text_bbox.width)
+              .attr('height', text_bbox.height)
+              .attr('x', text_bbox.x)
+              .attr('y', text_bbox.y)
+              .style('fill', block.color.replace('1)', '0.2)'));
+          })
     });
+
   
 // Draw block block_paths over axes *******************************************
 console.log('make blocks');
@@ -334,10 +350,10 @@ for (var i =0; i < num_breakpoints; i++) {
   breakpoint.start_block =  blocks[i].end;
   breakpoint.end_block = blocks[i + 1].start;
 
-  breakpoint.start = posFormat(breakpoint.start_block.chrom, breakpoint.start_block.pos);
-  breakpoint.end = posFormat(breakpoint.end_block.chrom, breakpoint.end_block.pos);
+  breakpoint.start_formatted = posFormat(breakpoint.start_block.chrom, breakpoint.start_block.pos);
+  breakpoint.end_formatted = posFormat(breakpoint.end_block.chrom, breakpoint.end_block.pos);
   breakpoint.external_name = 'Breakpoint';
-  breakpoint.name =  breakpoint.start + ' | ' + breakpoint.end;
+  breakpoint.name =  breakpoint.start_formatted + ' | ' + breakpoint.end_formatted;
 
   genes_top = genes[i];
   genes_bottom = genes[i+1];
