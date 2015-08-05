@@ -234,6 +234,7 @@ xAxisGroup.each(function (block, i) {
       })
       .on('click', function(gene) { 
         // temporary solution that keeps tooltip on page to allow selection of tip content
+        event.stopPropagation(); // keep parent element getting clicked (toggles scaled/schematic views o/w)
         gene_clicked = !gene_clicked;
         return gene_clicked ? tip.show(gene) : tip.hide(gene);
       })
@@ -416,9 +417,11 @@ gene_list.selectAll('div.breakpoint')
 
 gene_list.selectAll('div.breakpoint').each(function(breakpoint, i) {
   // Add header
-  d3.select(this).append('div')
-    .classed('panel-heading', true)
-    .text(breakpoint.name);
+  d3.select(this)
+      .classed('breakpoint-' + i, true)
+    .append('div')
+      .classed('panel-heading', true)
+      .text(breakpoint.name);
 
   // Add table
   table = d3.select(this)
@@ -498,13 +501,25 @@ gene_list.selectAll('div.breakpoint').each(function(breakpoint, i) {
       d3.select(this).classed('highlight', false);
       d3.selectAll('.' + id).classed('highlight', false);
       //tip.hide(gene);
-    });
+    })
+    .each(function(gene, j) {
+      // Add link to gene card page in Name column
+      var name = d3.select(d3.select(this).selectAll('td')[0][0]);
+      name.text('')
+        .append('a')
+        .classed('btn', true)
+        .style('padding', 0)
+        .text(gene.external_name)
+        .on('click', function() {
+          window.location.href = 'http://www.genecards.org/cgi-bin/carddisp.pl?gene=' + gene.id;
+        });
+      });
 
 
   // Make sure styles are maintained after table filtering
 
 
-  //Scroll to breakpoint
+  // Scroll to breakpoint
   var offset = $(breakpoint_row[0]).offset().top;
   var offset_header = $('.gene-table-' + i + ' > tbody > tr[data-index=0]').offset().top;
   $('div.fixed-table-body:has(.gene-table-'+ i +')').scrollTop(offset-offset_header);
