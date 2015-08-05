@@ -380,6 +380,7 @@ for (var i =0; i < genes.length; i++) {
   _.each(genes[i], function(gene) {
     gene.start_formatted = cFormat(gene.start);
     gene.end_formatted = cFormat(gene.end);
+    gene.color = blocks[i].color.replace('1)', '0.2)');
   })
 }
 
@@ -405,7 +406,53 @@ for (var i =0; i < num_breakpoints; i++) {
   breakpoints[i] = breakpoint;
 }
 
-var w, row, table, breakpoint_row;
+var styleGeneTable = function(table, new_gene_list) {
+
+  // Add data binding so D3 methods can be used on the table
+  table.selectAll('tbody tr')
+    .data(new_gene_list).enter();
+
+  // Style breakpoint in list
+  breakpoint_row = d3.select($(table[0]).find('tbody tr:has(td:contains("Breakpoint"))')[0]) // TODO seems overly complicated
+    .classed('breakpoint', true)
+    .style('background', 'black')
+    .style('color','white');
+
+  // Style gene list to link with SV SVG
+  table.selectAll('tbody tr:not(.breakpoint)')
+    .each(function(gene, j) {
+      var id = gene.id;
+      var row = d3.select(this);
+
+      row.classed(id, true)
+        .style('background-color', gene.color)
+        .on('mouseover', function() {
+          // Highlight corresponding gene structure
+          row.classed('highlight', true);
+          d3.selectAll('.' + id).classed('highlight', true);
+          //tip.show(gene);
+        })
+        .on('mouseout', function(gene) {
+          row.classed('highlight', false);
+          d3.selectAll('.' + id).classed('highlight', false);
+          //tip.hide(gene);
+        });
+
+      // Add link to gene card page in Name column
+      var name = d3.select(row.selectAll('td')[0][0]);
+      name.text('')
+        .append('a')
+        .classed('btn', true)
+        .style('padding', 0)
+        .text(gene.external_name)
+        .on('click', function() {
+          window.location.href = 'http://www.genecards.org/cgi-bin/carddisp.pl?gene=' + id;
+        });
+    });
+
+};
+
+var w, row, breakpoint_row;
 // Make one gene table per breakpoint
 gene_list.selectAll('div.breakpoint')
   .data(breakpoints).enter()
@@ -469,61 +516,27 @@ gene_list.selectAll('div.breakpoint').each(function(breakpoint, i) {
     .style('padding-left', '0')
     .style('padding-right', '0');
 
-  // Add data binding so D3 methods can be used on the table
-  table.selectAll('tbody tr')
-    .data(breakpoint.combined_list).enter();
-
-  // Style breakpoint in list
-  breakpoint_row = table.select('tbody tr[data-index="' + breakpoint.index + '"]')
-    .classed('breakpoint', true)
-    .style('background', 'black')
-    .style('color','white');
-
-  // Style gene list to link with SV SVG
-  table.selectAll('tbody tr:not(.breakpoint)')
-    .each(function(gene, i) {
-      var id = gene.id;
-      d3.select(this).classed(id, true);
-    })
-    .style('background-color', function(gene, j) {
-      return blocks[i + (j >= breakpoint.index)].color.replace('1)', '0.2)');
-    })
-    .on('mouseover', function(gene) {
-      // Highlight corresponding gene structure
-      var id = gene.id;
-      d3.select(this).classed('highlight', true);
-      d3.selectAll('.' + id).classed('highlight', true);
-      //tip.show(gene);
-      
-    })
-    .on('mouseout', function(gene) {
-      var id = gene.id;
-      d3.select(this).classed('highlight', false);
-      d3.selectAll('.' + id).classed('highlight', false);
-      //tip.hide(gene);
-    })
-    .each(function(gene, j) {
-      // Add link to gene card page in Name column
-      var name = d3.select(d3.select(this).selectAll('td')[0][0]);
-      name.text('')
-        .append('a')
-        .classed('btn', true)
-        .style('padding', 0)
-        .text(gene.external_name)
-        .on('click', function() {
-          window.location.href = 'http://www.genecards.org/cgi-bin/carddisp.pl?gene=' + gene.id;
-        });
-      });
-
-
-  // Make sure styles are maintained after table filtering
-
+  styleGeneTable(table, breakpoint.combined_list);
 
   // Scroll to breakpoint
-  var offset = $(breakpoint_row[0]).offset().top;
+/*  var offset = $(breakpoint_row[0]).offset().top;
   var offset_header = $('.gene-table-' + i + ' > tbody > tr[data-index=0]').offset().top;
-  $('div.fixed-table-body:has(.gene-table-'+ i +')').scrollTop(offset-offset_header);
+  $('div.fixed-table-body:has(.gene-table-'+ i +')').scrollTop(offset-offset_header);*/
 });
+
+// Make sure styles are maintained after table filtering *****************
+$('.gene-table').on('post-body.bs.table', function(e) {
+  var d = $(this).bootstrapTable('getData');
+  styleGeneTable(d3.select(this), d);
+});
+
+
+
+// Bootstrap Table debugging helper **************************************
+
+/*$('#sample-table').on('all.bs.table', function(e, d) {
+  console.log(e, d);
+});*/
 
 </script>
 {% endblock %}
