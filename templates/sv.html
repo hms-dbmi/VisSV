@@ -424,7 +424,7 @@ var breakpoint_tip = d3.tip()
       row.append('td').text(key);
       console.log('v', value);
       if (value.constructor === Array) {
-        value = (value[0] ? value[0].external_name : 'None');
+        value = (value[0] ? value[0].external_name : 'None'); // TODO change this - genes could be overlapping (would need to name them all)
       }
       row.append('td').text(value);
     });

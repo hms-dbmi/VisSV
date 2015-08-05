@@ -350,16 +350,32 @@ class VCFHandler(object):
                 'sv_id': sv_id} 
                 for b in breakends]
 
+            any_fusion = self.any_fusion_in_event(event_id, sample_name);
+
             record = {'id': sv_id, 
                       'type': event_type,
                       'vcf_id': event_id,
                       'description': description,
                       'breakend locations': breakend_locations,
                       'breakend locations array': breakend_locations_array,
-                      'breakends': breakends}
+                      'breakends': breakends,
+                      'fused': 'X - ' + ', '.join(any_fusion) if any_fusion else ''}
             json_records[event_id] = record; # TODO simplify structure
 
         return list(json_records.values())
+
+    def any_fusion_in_event(self, event_id, sample_name=CURRENT_SAMPLE):
+        print 'any fusion', sample_name, CURRENT_SAMPLE
+        blocks = self.get_blocks(event_id, sample_name=sample_name)
+        if blocks:
+            fusions = self.fusions_in_blocks(blocks)
+            fused_genes = []
+            for f in fusions:
+             if f['genes are fused']:
+                fused_genes.append(str(f['start gene'][0]['external_name']))
+                fused_genes.append(str(f['end gene'][0]['external_name']))
+            return list(set(fused_genes)) # returns unique elements
+        return False
 
     def get_breakends(self, event_id, sample_name=CURRENT_SAMPLE):
         '''Returns VCF records for a single event id'''
@@ -381,11 +397,17 @@ class VCFHandler(object):
 
     def get_blocks(self, event_id, bp_range=100000, sample_name=CURRENT_SAMPLE):
         '''Returns arragement as a series of blocks, convenient for displaying'''
+
         if sample_name != CURRENT_SAMPLE:
             self.load_sample(sample_name)
 
+        print 'get blocks', sample_name, event_id
+
         breakends = GROUPED_CURRENT_RECORDS[event_id]
         arrangement = self.breakends_to_arrangement(breakends)
+
+        if (not arrangement): 
+            return None
 
         # another horrible hack
         ends = []
@@ -394,13 +416,14 @@ class VCFHandler(object):
             ends.append(list(b))
 
         first = deepcopy(ends[0])
-        first[1] += bp_range if first[2] else -bp_range
-        first[2] = not first[2]
+        #print 'first', first
+        first[1] += bp_range if first[2] else -bp_range # position
+        first[2] = not first[2] # orientation
         ends = [first] + ends
 
         last = deepcopy(ends[-1])
-        last[1] += bp_range if last[2] else -bp_range
-        last[2] = not last[2]
+        last[1] += bp_range if last[2] else -bp_range # position
+        last[2] = not last[2] # orientation
         ends.append(last)
 
         # print ends
@@ -452,18 +475,31 @@ class VCFHandler(object):
 
             fusion = {}
             fusion['start gene'] = ensembl_requests.get_genes(chrom_id, end, end)
+            fusion['start is cut'] = fusion['start gene'] and len(fusion['start gene']) > 0;
+
+            # Exons never seem to overlap a cut, so leaving this out for now
+            # exons = ensembl_requests.get_exons(chrom_id, end, end)
+            # filtered_exons = [e for e in exons if (e['start'] <= end) and (e['end'] >= end)]
+            # fusion['start cut at exon'] = len(filtered_exons) > 0
+
             fusions.append(fusion)
 
         for i, block in enumerate(blocks[1:]):
             chrom_id = block['start']['chrom']
             start = block['start']['pos']
             fusions[i]['end gene'] = ensembl_requests.get_genes(chrom_id, start, start)
-            fusions[i]['start is cut'] = len(fusions[i]['start gene']) > 0;
-            fusions[i]['end is cut'] = len(fusions[i]['end gene']) > 0;
+            fusions[i]['end is cut'] = fusions[i]['end gene'] and len(fusions[i]['end gene']) > 0;
+
+            # Exons never seem to overlap a cut, so leaving this out for now
+            # exons = ensembl_requests.get_exons(chrom_id, start, start)
+            # filtered_exons = [e for e in exons if (e['start'] <= start) and (e['end'] >= start)]
+            # fusions[i]['end cut at exon'] = len(filtered_exons) > 0
             
             fusions[i]['genes are fused'] =  fusions[i]['start is cut'] and fusions[i]['end is cut']
             
         return fusions
+
+
 
     def exons_in_blocks(self, blocks): # TODO dry this
         exons_per_block = []
