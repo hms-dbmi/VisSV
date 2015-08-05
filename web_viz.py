@@ -96,11 +96,12 @@ def sv(sample_name, event_id, pair_id=None):
     breakends = vcf_handler.get_breakends(event_id, sample_name)
     blocks = vcf_handler.get_blocks(event_id, sample_name=sample_name)
     genes = vcf_handler.genes_in_blocks(blocks);
+    fusions = vcf_handler.fusions_in_blocks(blocks);
 
     return render_template('sv.html', sample_name=sample_name, \
         event_id=event_id, event_type=event_type, sv_id=sv_id, \
         event_description=event_description, breakends=breakends, \
-        blocks=blocks, attrs_to_show=attrs_to_show, genes=genes)
+        blocks=blocks, attrs_to_show=attrs_to_show, genes=genes, fusions=fusions)
 
 # trying out
 @app.route('/sample:<sample_name>/event:<event_id>/sv_blocks.json')

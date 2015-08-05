@@ -420,14 +420,50 @@ class VCFHandler(object):
 
     def genes_in_blocks(self, blocks):
         genes_per_block = []
+        request_limit = 5000000
         for block in blocks:
             chrom_id = block['start']['chrom']
             start = block['start']['pos']
             end = block['end']['pos']
-            genes = ensembl_requests.get_genes(chrom_id, start, end) if start < end \
-                else ensembl_requests.get_genes(chrom_id, end, start) 
+            print 'genes in blocks', chrom_id, start, end
+            if (abs(start - end) > request_limit):
+                # For now, if the request region exceeds the Ensembl API limit, we just return the 
+                # genes near the ends of the sequence block
+
+                start_genes = ensembl_requests.get_genes(chrom_id, start, start+request_limit-1)
+                end_genes = ensembl_requests.get_genes(chrom_id, end-request_limit+1, end)
+
+                start_genes_dict = {g['id']:g for g in start_genes}
+                end_genes_dict = {g['id']:g for g in end_genes}
+                start_genes_dict.update(end_genes_dict) # start_genes_dict is now the union of the two dicts (TODO confusing)
+                genes = list(start_genes_dict.values())
+            else:
+                genes = ensembl_requests.get_genes(chrom_id, start, end) if start < end \
+                    else ensembl_requests.get_genes(chrom_id, end, start) 
             genes_per_block.append(genes);
         return genes_per_block
+
+    def fusions_in_blocks(self, blocks):
+        # TODO use exons instead of genes
+        fusions = []
+        for block in blocks[:-1]:
+            chrom_id = block['end']['chrom']
+            end = block['end']['pos']
+
+            fusion = {}
+            fusion['start gene'] = ensembl_requests.get_genes(chrom_id, end, end)
+            fusions.append(fusion)
+
+        for i, block in enumerate(blocks[1:]):
+            chrom_id = block['start']['chrom']
+            start = block['start']['pos']
+            fusions[i]['end gene'] = ensembl_requests.get_genes(chrom_id, start, start)
+            fusions[i]['start is cut'] = len(fusions[i]['start gene']) > 0;
+            fusions[i]['end is cut'] = len(fusions[i]['end gene']) > 0;
+            
+            fusions[i]['genes are fused'] =  fusions[i]['start is cut'] and fusions[i]['end is cut']
+            
+        return fusions
 
     def exons_in_blocks(self, blocks): # TODO dry this
         exons_per_block = []

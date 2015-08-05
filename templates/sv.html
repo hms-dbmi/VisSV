@@ -89,6 +89,7 @@ blocks = _.map(blocks, function(block, i) {
 var axis_height = svg_height/2;
 var tick_height = axis_height;
 
+// Add ticks to axis group
 var xAxisGroup = canvas.selectAll('g.axis')
     .data(blocks).enter()
     .append('g')
@@ -107,10 +108,7 @@ var xAxisGroup = canvas.selectAll('g.axis')
             });
         d3.select(this).call(xAxis);
 
-        d3.select(this).selectAll('text')
-/*          .style('fill', block.color)
-          .style('stroke', 'black')
-          .style('stroke-width', '0.4px')*/
+        d3.select(this).selectAll('text')   /*  .style('fill', block.color).style('stroke', 'black').style('stroke-width', '0.4px')*/
           .each(function() {
             var text_bbox = this.getBBox();
 
@@ -196,7 +194,7 @@ var gene_path = function(block, gene) {
 };
 
 // Create gene tooltip
-var tip = d3.tip()
+var gene_tip = d3.tip()
   .attr('class', 'd3-tip c3-tooltip')
   .style('max-width', '100px')
   .offset([550, 0])
@@ -215,7 +213,7 @@ var tip = d3.tip()
     return $(tip_table[0]).prop('outerHTML');
   });
   
-svg.call(tip);
+svg.call(gene_tip);
 var gene_clicked = false;
 
 // Add genes representations to each fragment's axis group
@@ -236,7 +234,7 @@ xAxisGroup.each(function (block, i) {
         // temporary solution that keeps tooltip on page to allow selection of tip content
         event.stopPropagation(); // keep parent element getting clicked (toggles scaled/schematic views o/w)
         gene_clicked = !gene_clicked;
-        return gene_clicked ? tip.show(gene) : tip.hide(gene);
+        return gene_clicked ? gene_tip.show(gene) : gene_tip.hide(gene);
       })
       .on('mouseover', function(gene) {
         // Highlight corresponding gene structure
@@ -297,7 +295,10 @@ var updateBlocks = function() {
         .orient((isEven(i)) ? 'top' : 'bottom')
         .tickValues(block.domain)
         .tickSize(tick_height,0)
-        .scale(block.xScale);
+        .scale(block.xScale)
+        .tickFormat(function (x) {
+          return posFormat(block.start.chrom, x);
+        });
     d3.select(this)
       .call(xAxis)
       .attr('transform', 'translate(' + sumPreviousWidths + ',' + axis_height + ')');
@@ -384,6 +385,7 @@ for (var i =0; i < genes.length; i++) {
   })
 }
 
+
 var breakpoints = [];
 for (var i =0; i < num_breakpoints; i++) {
   breakpoint = {}
@@ -406,6 +408,46 @@ for (var i =0; i < num_breakpoints; i++) {
   breakpoints[i] = breakpoint;
 }
 
+// Add breakpoint tooltips to SVG
+var fusions = {{ fusions|tojson|safe }};
+var breakpoint_tip = d3.tip()
+  .attr('class', 'd3-tip c3-tooltip')
+  .style('max-width', '100px')
+  .offset([0, 0])
+  .html(function(breakpoint, i) { 
+    // Formatting this content to match css selectors for c3-tooltip 
+    var tip_table = d3.select(document.createElement('table'));
+    var header = tip_table.append('thead').append('tr').append('th').text('Breakpoint');
+    var tbody = tip_table.append('tbody');
+    _.mapObject(fusions[i], function(value, key) {
+      var row = tbody.append('tr');
+      row.append('td').text(key);
+      console.log('v', value);
+      if (value.constructor === Array) {
+        value = (value[0] ? value[0].external_name : 'None');
+      }
+      row.append('td').text(value);
+    });
+    console.log('breakpoint tip',breakpoint, i, fusions[i]);
+    return $(tip_table[0]).prop('outerHTML');
+  });
+  
+svg.call(breakpoint_tip);
+_.each(_.initial(xAxisGroup[0]), function(cur_group, i) {
+  var last_tick = d3.select(cur_group).selectAll('g.tick')[0][1];
+  d3.select(last_tick)
+    .on('mouseover', function() { breakpoint_tip.show(breakpoints[i], i); })
+    .on('mouseout', function() { breakpoint_tip.hide(breakpoints[i], i); });
+}); // TODO dry
+_.each(_.rest(xAxisGroup[0]), function(cur_group, i) {
+  var first_tick = d3.select(cur_group).selectAll('g.tick')[0][0];
+  d3.select(first_tick)
+    .on('mouseover', function() { breakpoint_tip.show(breakpoints[i], i); })
+    .on('mouseout', function() { breakpoint_tip.hide(breakpoints[i], i); });
+}); // TODO dry
+
+
+// Helper methdo to keep gene table styling after search event
 var styleGeneTable = function(table, new_gene_list) {
 
   // Add data binding so D3 methods can be used on the table
