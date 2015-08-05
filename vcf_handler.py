@@ -350,7 +350,7 @@ class VCFHandler(object):
                 'sv_id': sv_id} 
                 for b in breakends]
 
-            any_fusion = self.any_fusion_in_event(event_id, sample_name);
+            fused, genes_hit = self.any_fusion_in_event(event_id, sample_name);
 
             record = {'id': sv_id, 
                       'type': event_type,
@@ -359,7 +359,8 @@ class VCFHandler(object):
                       'breakend locations': breakend_locations,
                       'breakend locations array': breakend_locations_array,
                       'breakends': breakends,
-                      'fused': 'X - ' + ', '.join(any_fusion) if any_fusion else ''}
+                      'fused': 'X' if fused else '',
+                      'genes hit': ', '.join(genes_hit) if len(genes_hit) > 0 else ''}
             json_records[event_id] = record; # TODO simplify structure
 
         return list(json_records.values())
@@ -370,12 +371,15 @@ class VCFHandler(object):
         if blocks:
             fusions = self.fusions_in_blocks(blocks)
             fused_genes = []
+            any_fused = False
             for f in fusions:
-             if f['genes are fused']:
-                fused_genes.append(str(f['start gene'][0]['external_name']))
-                fused_genes.append(str(f['end gene'][0]['external_name']))
-            return list(set(fused_genes)) # returns unique elements
-        return False
+                any_fused = any_fused or f['genes are fused']
+                if f['start is cut']:
+                    fused_genes.append(str(f['start gene'][0]['external_name']))
+                if f['end is cut']:
+                    fused_genes.append(str(f['end gene'][0]['external_name']))
+            return any_fused, list(set(fused_genes)) # returns unique elements
+        return False, None
 
     def get_breakends(self, event_id, sample_name=CURRENT_SAMPLE):
         '''Returns VCF records for a single event id'''

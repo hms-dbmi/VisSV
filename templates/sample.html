@@ -5,6 +5,7 @@
 
 	<div id="sample-chart"></div>
   <div id="chromosome-chart"></div>
+  <p></p>
   <div id="sample-table"></div>
 </div>
 
@@ -277,7 +278,7 @@ make_chromosome_chart();
 
 // Generate sample table *************************************************
 
-var table_headers = ['type', 'description', 'id', 'breakend locations', 'fused'];
+var table_headers = ['type', 'description', 'id', 'breakend locations', 'genes hit', 'fused'];
 
 // Add table
 var table = d3.select('#sample-table')
